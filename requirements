@@ -1,13 +1,3 @@
 matplotlib
 pandas
 numpy
-streamlit
-seaborn
-random
-math
-datetime
-pickle
-concurrent.futures
-os
-uuid
-json
