@@ -71,6 +71,7 @@ def create_user():
     # Get user input
     age = st.number_input("Age", min_value=0, value=22, step=1)
     income = st.number_input("Income", min_value=0.0, value=95000.0, step=1000.0)
+    income_growth = st.slider("Income Growth", min_value=0.0, max_value=0.2, value=0.03, step=0.01)
     risk_tolerance = st.slider("Risk Tolerance", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
     expenditure_growth_beyond_inflation = st.slider("Expenditure Growth Beyond Inflation", min_value=0.0, max_value=0.1, value=0.03, step=0.01)
     current_savings = st.number_input("Current Savings", min_value=0.0, value=25000.0, step=1000.0)
@@ -157,7 +158,7 @@ def create_user():
         user.average_life_event_frequency = average_life_event_frequency
         user.post_retirement_expenses = post_retirement_expenses
         user.average_post_retirement_income = average_post_retirement_income
-
+        user.income_growth = income_growth
         for budget_item in budget_items:
             formatted_budget_item = {
                 "name": budget_item["name"],
