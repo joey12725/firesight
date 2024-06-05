@@ -9,7 +9,7 @@ cwd = os.getcwd()
 
 st.set_page_config(page_title="FIRE Simulator", page_icon="🔥")
 
-exec(open(cwd + "\FIRE.py").read())
+exec(open(cwd + "/FIRE.py").read())
 
 def load_user_file():
     uploaded_file = st.file_uploader("Upload User Configuration", type="json")
