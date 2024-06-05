@@ -9,7 +9,8 @@ cwd = os.getcwd()
 
 st.set_page_config(page_title="FIRE Simulator", page_icon="🔥")
 
-exec(open(cwd + "/FIRE.py").read())
+# Adjust the path to your FIRE.py file
+exec(open(os.path.join(cwd, "FIRE.py")).read())
 
 def load_user_file():
     uploaded_file = st.file_uploader("Upload User Configuration", type="json")
@@ -172,7 +173,7 @@ def create_user(user_data=None):
     home_purchase = st.checkbox("Plan to Purchase a Home", value=bool(home_purchase_data))
     if home_purchase:
         st.subheader("Home Purchase Details")
-        home_purchase_date = st.date_input("Home Purchase Date", value=datetime.date.fromisoformat(home_purchase_data.get("date", "2025-01-01")), min_value=datetime.date.today())
+        home_purchase_date = st.date_input("Home Purchase Date", value=datetime.date.fromisoformat(home_purchase_data.get("date", "2025-01-01")) if "date" in home_purchase_data else datetime.date(2025, 1, 1), min_value=datetime.date.today())
         home_purchase_price = st.number_input("Home Purchase Price", min_value=0.0, value=home_purchase_data.get("price", 300000.0), step=10000.0)
         down_payment = st.number_input("Down Payment", min_value=0.0, value=home_purchase_data.get("down_payment", 60000.0), step=1000.0)
         property_tax = st.number_input("Property Tax", min_value=0.0, max_value=0.5, value=home_purchase_data.get("property_tax", 0.02), step=0.005)
@@ -183,7 +184,7 @@ def create_user(user_data=None):
     location_change = st.checkbox("Plan to Change Location (domestic only)", value=bool(location_change_data))
     if location_change:
         st.subheader("Location Change Details")
-        location_change_date = st.date_input("Location Change Date", value=datetime.date.fromisoformat(location_change_data.get("date", "2025-01-01")), min_value=datetime.date.today())
+        location_change_date = st.date_input("Location Change Date", value=datetime.date.fromisoformat(location_change_data.get("date", "2025-01-01")) if "date" in location_change_data else datetime.date(2025, 1, 1), min_value=datetime.date.today())
         location_change_moving_cost = st.number_input("Moving Cost", min_value=0.0, value=location_change_data.get("moving_cost", 5000.0), step=1000.0)
         location_change_col_adjustment = st.slider("Cost of Living Adjustment", min_value=0.0, max_value=2.0, value=location_change_data.get("col_adjustment", 1.0), step=0.01)
         location_change_state_income_tax = st.number_input("State Income Tax", min_value=0.0, value=location_change_data.get("state_income_tax", 0.0), step=0.01)
@@ -213,6 +214,7 @@ def create_user(user_data=None):
         user.post_retirement_expenses = post_retirement_expenses
         user.average_post_retirement_income = average_post_retirement_income
         user.income_growth = income_growth
+        
         for budget_item in budget_items:
             formatted_budget_item = {
                 "name": budget_item["name"],
@@ -220,13 +222,17 @@ def create_user(user_data=None):
                 "frequency": budget_item["frequency"]
             }
             user.add_budget_item(formatted_budget_item)
-            ratio_sum = sum([investment_vehicle["ratio"] for investment_vehicle in investment_vehicles])
-            if ratio_sum != 1:
-                st.error("The ratios of investment vehicles must add up to 1.")
+        
+        ratio_sum = sum([investment_vehicle["ratio"] for investment_vehicle in investment_vehicles])
+        if ratio_sum != 1:
+            st.error("The ratios of investment vehicles must add up to 1.")
+        
         for investment_vehicle in investment_vehicles:
             user.add_invstment_vehicle(investment_vehicle["name"], investment_vehicle["annual_returns"], investment_vehicle["standard_deviation"], investment_vehicle["ratio"])
+        
         for major_expense in major_expenses:
             user.add_major_expense(major_expense["name"], major_expense["cost"], major_expense["date"])
+        
         if home_purchase:
             user.home_purchase_date = home_purchase_date
             user.home_purchase_price = home_purchase_price
@@ -235,6 +241,7 @@ def create_user(user_data=None):
             user.mortgage_term_years = mortgage_term_years
             user.pay_off_mortgage_before_retirement = pay_off_mortgage_before_retirement
             user.property_tax = property_tax
+        
         if location_change:
             user.location_change = True
             user.location_change_date = location_change_date
@@ -287,49 +294,3 @@ def create_user(user_data=None):
         
         user_json = json.dumps(user_data, indent=4)
         st.download_button('Download User Configuration', user_json, file_name='user.json', mime='application/json')
-        
-        ts_df, average_retirement_age, stdev_retirement_age = monte_carlo_simulation(years=simulate_years, simulations=8)
-        
-        colors = ['#FFAC66', '#FF9E4D', '#FF8F33']
-     
-        bottom_range = round(average_retirement_age - stdev_retirement_age)
-        top_range = round(average_retirement_age + stdev_retirement_age)
-        st.title(f"Your Estimated Retirement Age is between :orange[{bottom_range}] and :orange[{top_range}] years old")
-        
-        st.title(f"We ran 8 simulations of {simulate_years} years. Here are the results:")
-       
-        df_net_worth = ts_df[["net_worth", "investments", "month"]]
-        df_net_worth = df_net_worth.set_index("month")
-        df_net_worth_styled = df_net_worth.style.set_properties(**{'color': colors[0]}, subset=['net_worth']).set_properties(**{'color': colors[1]}, subset=['investments'])
-        st.line_chart(df_net_worth_styled)
-        
-        if user.home_purchase_date is not None:
-            df_home_equity = ts_df[["home_equity_value_with_growth", "month"]]
-            st.line_chart(df_home_equity.set_index("month"))
-        
-        if len(list(user.budget.keys())) > 1:
-            budget = user.budget
-            categories = list(budget.keys())
-            values = [budget[category]["value"] if budget[category]["frequency"] == "monthly" else budget[category]["value"]/12 for category in categories]
-            st.title("Here is a breakdown of your proposed budget:")
-            orange_blue_palette = [
-                '#FFF5EB', '#FFE6CC', '#FFD8B2', '#FFCA99', '#FFBB80', '#FFAC66',
-                '#FF9E4D', '#FF8F33', '#FF801A', '#FF7000', '#FF5F00', '#FF4E00',
-                '#FF3D00', '#FF2C00', '#FF1B00', '#FF0A00', '#F50000', '#E60000'
-            ]
-            fig1, ax1 = plt.subplots()
-            plt.pie(values, labels=categories, autopct='%1.1f%%', colors=orange_blue_palette)
-            ax1.axis('equal')
-            st.pyplot(fig1)
-            st.subheader(f"Average Monthly Budget: ${round(sum(values), 2)}")
-        
-        st.title("Raw Data")
-        df_styled = ts_df.style.set_properties(**{'background-color': colors[1]}, subset=['net_worth']).set_properties(**{'background-color': colors[0]}, subset=['investments'])
-        st.write(df_styled)
-        return user
-    
-    return None
-
-if __name__ == "__main__":
-    user_data = load_user_file()
-    create_user(user_data)
