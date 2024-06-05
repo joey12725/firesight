@@ -9,10 +9,15 @@ cwd = os.getcwd()
 
 st.set_page_config(page_title="FIRE Simulator", page_icon="🔥")
 
-exec(open(cwd + "/FIRE.py").read())
+exec(open(cwd + "\FIRE.py").read())
 
+def load_user_file():
+    uploaded_file = st.file_uploader("Upload User Configuration", type="json")
+    if uploaded_file is not None:
+        return json.load(uploaded_file)
+    return None
 
-def generate_repeating_field_group(keys, group_id):
+def generate_repeating_field_group(keys, group_id, default_values=None):
     if f"rows_{group_id}" not in st.session_state:
         st.session_state[f"rows_{group_id}"] = []
 
@@ -25,14 +30,14 @@ def generate_repeating_field_group(keys, group_id):
     def remove_row(row_id):
         st.session_state[f"rows_{group_id}"].remove(str(row_id))
 
-    def generate_row(row_id):
+    def generate_row(row_id, defaults=None):
         row_container = st.container()
         row_columns = row_container.columns((3, 1))
         field_group = {}
 
         for key, value in keys.items():
             field_type = value["type"]
-            default_value = value["default"]
+            default_value = defaults[key] if defaults and key in defaults else value["default"]
 
             if field_type == int:
                 field_group[key] = row_columns[0].number_input(key, value=int(default_value), step=1, key=f"{key}_{row_id}_{group_id}")
@@ -41,12 +46,12 @@ def generate_repeating_field_group(keys, group_id):
             elif field_type == str:
                 field_group[key] = row_columns[0].text_input(key, value=str(default_value), key=f"{key}_{row_id}_{group_id}")
             elif field_type == "date":
-                field_group[key] = row_columns[0].date_input(key, value=datetime.date.today(), key=f"{key}_{row_id}_{group_id}")
+                field_group[key] = row_columns[0].date_input(key, value=datetime.date.fromisoformat(default_value) if isinstance(default_value, str) else default_value, key=f"{key}_{row_id}_{group_id}")
             elif field_type == "paragraph":
                 field_group[key] = row_columns[0].text_area(key, value=str(default_value), key=f"{key}_{row_id}_{group_id}")
             elif field_type == "choice":
                 choices = value["choices"]
-                field_group[key] = row_columns[0].selectbox(key, options=choices, key=f"{key}_{row_id}_{group_id}")
+                field_group[key] = row_columns[0].selectbox(key, options=choices, index=choices.index(default_value), key=f"{key}_{row_id}_{group_id}")
             else:
                 raise ValueError(f"Invalid field type: {field_type}")
 
@@ -58,43 +63,94 @@ def generate_repeating_field_group(keys, group_id):
         st.button("Add Item", on_click=add_row, key=f"add_item_{group_id}")
 
     for row in st.session_state[f"rows_{group_id}"]:
-        row_data = generate_row(row)
+        defaults = None
+        if default_values and row in default_values:
+            defaults = default_values[row]
+        row_data = generate_row(row, defaults)
         rows_collection.append(row_data)
 
     return rows_collection
 
-    
-    
-def create_user():
+def create_user(user_data=None):
     st.title("FIRE Simulator🔥")
-    #set page title and favicon
+    
+    if user_data:
+        age = user_data.get("age", 22)
+        income = user_data.get("income", 95000.0)
+        income_growth = user_data.get("income_growth", 0.03)
+        risk_tolerance = user_data.get("risk_tolerance", 0.5)
+        expenditure_growth_beyond_inflation = user_data.get("expenditure_growth_beyond_inflation", 0.03)
+        current_savings = user_data.get("current_savings", 25000.0)
+        max_401k_contribution = user_data.get("max_401k_contribution", True)
+        max_ira_contribution = user_data.get("max_ira_contribution", True)
+        max_hsa_contribution = user_data.get("max_hsa_contribution", False)
+        other_tax_sheltered_income = user_data.get("other_tax_sheltered_income", 0.0)
+        married = user_data.get("married", True)
+        emergency_fund_target = user_data.get("emergency_fund_target", 10000.0)
+        inflation = user_data.get("inflation", 0.03)
+        average_life_event_cost = user_data.get("average_life_event_cost", 1000.0)
+        average_life_event_stdev = user_data.get("average_life_event_stdev", 500.0)
+        average_life_event_frequency = user_data.get("average_life_event_frequency", 1)
+        budget_items_data = user_data.get("budget_items", {})
+        investment_vehicles_data = user_data.get("investment_vehicles", {})
+        major_expenses_data = user_data.get("major_expenses", {})
+        home_purchase_data = user_data.get("home_purchase", {})
+        location_change_data = user_data.get("location_change", {})
+        post_retirement_expenses = user_data.get("post_retirement_expenses", 0.0)
+        average_post_retirement_income = user_data.get("average_post_retirement_income", 0.0)
+        simulate_years = user_data.get("simulate_years", 10)
+    else:
+        age = 22
+        income = 95000.0
+        income_growth = 0.03
+        risk_tolerance = 0.5
+        expenditure_growth_beyond_inflation = 0.03
+        current_savings = 25000.0
+        max_401k_contribution = True
+        max_ira_contribution = True
+        max_hsa_contribution = False
+        other_tax_sheltered_income = 0.0
+        married = True
+        emergency_fund_target = 10000.0
+        inflation = 0.03
+        average_life_event_cost = 1000.0
+        average_life_event_stdev = 500.0
+        average_life_event_frequency = 1
+        budget_items_data = {}
+        investment_vehicles_data = {}
+        major_expenses_data = {}
+        home_purchase_data = {}
+        location_change_data = {}
+        post_retirement_expenses = 0.0
+        average_post_retirement_income = 0.0
+        simulate_years = 10
+
     # Get user input
-    age = st.number_input("Age", min_value=0, value=22, step=1)
-    income = st.number_input("Income", min_value=0.0, value=95000.0, step=1000.0)
-    income_growth = st.slider("Income Growth", min_value=0.0, max_value=0.2, value=0.03, step=0.01)
-    risk_tolerance = st.slider("Risk Tolerance", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
-    expenditure_growth_beyond_inflation = st.slider("Expenditure Growth Beyond Inflation", min_value=0.0, max_value=0.1, value=0.03, step=0.01)
-    current_savings = st.number_input("Current Savings", min_value=0.0, value=25000.0, step=1000.0)
-    max_401k_contribution = st.checkbox("Max 401k Contribution", value=True)
-    max_ira_contribution = st.checkbox("Max IRA Contribution", value=True)
-    max_hsa_contribution = st.checkbox("Max HSA Contribution", value=False)
-    other_tax_sheltered_income = st.number_input("Other Tax Sheltered Income", min_value=0.0, value=0.0, step=1000.0)
-    married = st.checkbox("Married", value=True)
-    emergency_fund_target = st.number_input("Emergency Fund Target", min_value=0.0, value=10000.0, step=1000.0)
-    inflation = st.slider("Inflation", min_value=0.0, max_value=0.1, value=0.03, step=0.01)
-    average_life_event_cost = st.number_input("Average Life Event Cost", min_value=0.0, value=1000.0, step=1000.0)
-    average_life_event_stdev = st.number_input("Life Event Standard Deviation", min_value=0.0, value=500.0, step=1000.0)
-    average_life_event_frequency = st.slider("Average Life Events per year", min_value=0, max_value=10, value=1, step=1)
+    age = st.number_input("Age", min_value=0, value=age, step=1)
+    income = st.number_input("Income", min_value=0.0, value=income, step=1000.0)
+    income_growth = st.slider("Income Growth", min_value=0.0, max_value=0.2, value=income_growth, step=0.01)
+    risk_tolerance = st.slider("Risk Tolerance", min_value=0.0, max_value=1.0, value=risk_tolerance, step=0.01)
+    expenditure_growth_beyond_inflation = st.slider("Expenditure Growth Beyond Inflation", min_value=0.0, max_value=0.1, value=expenditure_growth_beyond_inflation, step=0.01)
+    current_savings = st.number_input("Current Savings", min_value=0.0, value=current_savings, step=1000.0)
+    max_401k_contribution = st.checkbox("Max 401k Contribution", value=max_401k_contribution)
+    max_ira_contribution = st.checkbox("Max IRA Contribution", value=max_ira_contribution)
+    max_hsa_contribution = st.checkbox("Max HSA Contribution", value=max_hsa_contribution)
+    other_tax_sheltered_income = st.number_input("Other Tax Sheltered Income", min_value=0.0, value=other_tax_sheltered_income, step=1000.0)
+    married = st.checkbox("Married", value=married)
+    emergency_fund_target = st.number_input("Emergency Fund Target", min_value=0.0, value=emergency_fund_target, step=1000.0)
+    inflation = st.slider("Inflation", min_value=0.0, max_value=0.1, value=inflation, step=0.01)
+    average_life_event_cost = st.number_input("Average Life Event Cost", min_value=0.0, value=average_life_event_cost, step=1000.0)
+    average_life_event_stdev = st.number_input("Life Event Standard Deviation", min_value=0.0, value=average_life_event_stdev, step=1000.0)
+    average_life_event_frequency = st.slider("Average Life Events per year", min_value=0, max_value=10, value=average_life_event_frequency, step=1)
+    
     st.subheader("Budget Items")
-    # Budget items have a name, value, and frequency
     budget_item_keys = {
         "name": {"type": str, "default": ""},
         "value": {"type": int, "default": 2000},
         "frequency": {"type": "choice", "default": "monthly", "choices": ["weekly", "monthly", "annual"]}
     }
-
-    budget_items = generate_repeating_field_group(budget_item_keys, "budget")
-    # Investment vehicles have a name, average annual return, standard deviation, and ratio
+    budget_items = generate_repeating_field_group(budget_item_keys, "budget", budget_items_data)
+    
     st.subheader("Investment Vehicles")
     investment_vehicle_keys = {
         "name": {"type": str, "default": "S&P 500"},
@@ -102,43 +158,41 @@ def create_user():
         "standard_deviation": {"type": float, "default": 0.1532},
         "ratio": {"type": float, "default": 1.0}
     }
-    investment_vehicles = generate_repeating_field_group(investment_vehicle_keys, "investment")
+    investment_vehicles = generate_repeating_field_group(investment_vehicle_keys, "investment", investment_vehicles_data)
     st.write("Note: The ratios of all investment vehicles must add up to 1.")
-
-    # Major expenses have a name, cost, and date
+    
     st.subheader("Major Expenses")
     major_expense_keys = {
         "name": {"type": str, "default": ""},
         "cost": {"type": int, "default": 0.0},
         "date": {"type": "date", "default": datetime.date.today()}
     }
-
-    major_expenses = generate_repeating_field_group(major_expense_keys, "major_expense")
-
-    # Home purchase details
-    home_purchase = st.checkbox("Plan to Purchase a Home", value=False)
+    major_expenses = generate_repeating_field_group(major_expense_keys, "major_expense", major_expenses_data)
+    
+    home_purchase = st.checkbox("Plan to Purchase a Home", value=bool(home_purchase_data))
     if home_purchase:
         st.subheader("Home Purchase Details")
-        home_purchase_date = st.date_input("Home Purchase Date", value=datetime.date(2025, 1, 1), min_value=datetime.date.today())
-        home_purchase_price = st.number_input("Home Purchase Price", min_value=0.0, value=300000.0, step=10000.0)
-        down_payment = st.number_input("Down Payment", min_value=0.0, value=60000.0, step=1000.0)
-        property_tax = st.number_input("Property Tax", min_value=0.0, max_value=0.5, value=.02, step=0.005)
-        mortgage_rate = st.slider("Mortgage Rate", min_value=0.0, max_value=0.1, value=0.04, step=0.001)
-        mortgage_term_years = st.slider("Mortgage Term (Years)", min_value=10, max_value=30, value=30, step=1)
-        pay_off_mortgage_before_retirement = st.checkbox("Pay Off Mortgage Before Retirement", value=False)
-    location_change = st.checkbox("Plan to Change Location (domestic only)", value=False)
+        home_purchase_date = st.date_input("Home Purchase Date", value=datetime.date.fromisoformat(home_purchase_data.get("date", "2025-01-01")), min_value=datetime.date.today())
+        home_purchase_price = st.number_input("Home Purchase Price", min_value=0.0, value=home_purchase_data.get("price", 300000.0), step=10000.0)
+        down_payment = st.number_input("Down Payment", min_value=0.0, value=home_purchase_data.get("down_payment", 60000.0), step=1000.0)
+        property_tax = st.number_input("Property Tax", min_value=0.0, max_value=0.5, value=home_purchase_data.get("property_tax", 0.02), step=0.005)
+        mortgage_rate = st.slider("Mortgage Rate", min_value=0.0, max_value=0.1, value=home_purchase_data.get("mortgage_rate", 0.04), step=0.001)
+        mortgage_term_years = st.slider("Mortgage Term (Years)", min_value=10, max_value=30, value=home_purchase_data.get("mortgage_term_years", 30), step=1)
+        pay_off_mortgage_before_retirement = st.checkbox("Pay Off Mortgage Before Retirement", value=home_purchase_data.get("pay_off_before_retirement", False))
+    
+    location_change = st.checkbox("Plan to Change Location (domestic only)", value=bool(location_change_data))
     if location_change:
         st.subheader("Location Change Details")
-        location_change_date = st.date_input("Location Change Date", value=datetime.date(2025, 1, 1), min_value=datetime.date.today())
-        location_change_moving_cost = st.number_input("Moving Cost", min_value=0.0, value=5000.0, step=1000.0)
-        location_change_col_adjustment = st.slider("Cost of Living Adjustment", min_value=0.0, max_value=2.0, value=1.0, step=0.01)
-        location_change_state_income_tax = st.number_input("State Income Tax", min_value=0.0, value=0.0, step=0.01)
-        location_change_property_tax = st.number_input("Property Tax", min_value=0.0, value=0.0, step=0.01)
-
-    post_retirement_expenses = st.number_input("Post Retirement Expenses", min_value=0.0, value=0.0, step=1000.0)
-    average_post_retirement_income = st.number_input("Average Post Retirement Income (not including investments)", min_value=0.0, value=0.0, step=1000.0)
-    simulate_years = st.slider("Simulation Years", min_value=1, max_value=50, value=10, step=1)
-
+        location_change_date = st.date_input("Location Change Date", value=datetime.date.fromisoformat(location_change_data.get("date", "2025-01-01")), min_value=datetime.date.today())
+        location_change_moving_cost = st.number_input("Moving Cost", min_value=0.0, value=location_change_data.get("moving_cost", 5000.0), step=1000.0)
+        location_change_col_adjustment = st.slider("Cost of Living Adjustment", min_value=0.0, max_value=2.0, value=location_change_data.get("col_adjustment", 1.0), step=0.01)
+        location_change_state_income_tax = st.number_input("State Income Tax", min_value=0.0, value=location_change_data.get("state_income_tax", 0.0), step=0.01)
+        location_change_property_tax = st.number_input("Property Tax", min_value=0.0, value=location_change_data.get("property_tax", 0.0), step=0.01)
+    
+    post_retirement_expenses = st.number_input("Post Retirement Expenses", min_value=0.0, value=post_retirement_expenses, step=1000.0)
+    average_post_retirement_income = st.number_input("Average Post Retirement Income (not including investments)", min_value=0.0, value=average_post_retirement_income, step=1000.0)
+    simulate_years = st.slider("Simulation Years", min_value=1, max_value=50, value=simulate_years, step=1)
+    
     if st.button("Run Simulation"):
         user = User()
         user.age = age
@@ -188,72 +242,94 @@ def create_user():
             user.location_col_adjustment = location_change_col_adjustment
             user.location_property_tax_adjustment = location_change_property_tax
             user.location_state_income_tax_adjustment = location_change_state_income_tax
-        #create a simulation years slider
+        
         st.success("Running Simulation...")
-        user.save_user_as_file()
+        user_data = {
+            "age": user.age,
+            "income": user.income,
+            "income_growth": user.income_growth,
+            "risk_tolerance": user.risk_tolerance,
+            "expenditure_growth_beyond_inflation": user.expenditure_growth_beyond_inflation,
+            "current_savings": user.current_savings,
+            "max_401k_contribution": user.max_401k_contribution,
+            "max_ira_contribution": user.max_ira_contribution,
+            "max_hsa_contribution": user.max_hsa_contribution,
+            "other_tax_sheltered_income": user.other_tax_sheltered_income,
+            "married": user.married,
+            "emergency_fund_target": user.emergency_fund_target,
+            "inflation": user.inflation,
+            "average_life_event_cost": user.average_life_event_cost,
+            "average_life_event_stdev": user.average_life_event_stdev,
+            "average_life_event_frequency": user.average_life_event_frequency,
+            "budget_items": [{"name": item["name"], "value": item["value"], "frequency": item["frequency"]} for item in budget_items],
+            "investment_vehicles": [{"name": vehicle["name"], "annual_returns": vehicle["annual_returns"], "standard_deviation": vehicle["standard_deviation"], "ratio": vehicle["ratio"]} for vehicle in investment_vehicles],
+            "major_expenses": [{"name": expense["name"], "cost": expense["cost"], "date": str(expense["date"])} for expense in major_expenses],
+            "home_purchase": {
+                "date": str(home_purchase_date) if home_purchase else None,
+                "price": home_purchase_price if home_purchase else None,
+                "down_payment": down_payment if home_purchase else None,
+                "mortgage_rate": mortgage_rate if home_purchase else None,
+                "mortgage_term_years": mortgage_term_years if home_purchase else None,
+                "pay_off_before_retirement": pay_off_mortgage_before_retirement if home_purchase else None,
+                "property_tax": property_tax if home_purchase else None,
+            },
+            "location_change": {
+                "date": str(location_change_date) if location_change else None,
+                "moving_cost": location_change_moving_cost if location_change else None,
+                "col_adjustment": location_change_col_adjustment if location_change else None,
+                "state_income_tax": location_change_state_income_tax if location_change else None,
+                "property_tax": location_change_property_tax if location_change else None,
+            },
+            "post_retirement_expenses": post_retirement_expenses,
+            "average_post_retirement_income": average_post_retirement_income,
+            "simulate_years": simulate_years
+        }
+        
+        user_json = json.dumps(user_data, indent=4)
+        st.download_button('Download User Configuration', user_json, file_name='user.json', mime='application/json')
+        
         ts_df, average_retirement_age, stdev_retirement_age = monte_carlo_simulation(years=simulate_years, simulations=8)
-        #DATA VISUALIZATION TIME
-        #title for the estimated retirement age
-        #calculate 2 standard deviations from the mean up and down to get a range. Should be rounded to ints
+        
         colors = ['#FFAC66', '#FF9E4D', '#FF8F33']
      
         bottom_range = round(average_retirement_age - stdev_retirement_age)
         top_range = round(average_retirement_age + stdev_retirement_age)
         st.title(f"Your Estimated Retirement Age is between :orange[{bottom_range}] and :orange[{top_range}] years old")
-        #title for the data visualization
+        
         st.title(f"We ran 8 simulations of {simulate_years} years. Here are the results:")
        
         df_net_worth = ts_df[["net_worth", "investments", "month"]]
-        df_net_worth = df_net_worth.set_index("month")  # Set the index on the original DataFrame
+        df_net_worth = df_net_worth.set_index("month")
         df_net_worth_styled = df_net_worth.style.set_properties(**{'color': colors[0]}, subset=['net_worth']).set_properties(**{'color': colors[1]}, subset=['investments'])
         st.line_chart(df_net_worth_styled)
-        #Line chart with home equity value with and without value growth
+        
         if user.home_purchase_date is not None:
             df_home_equity = ts_df[["home_equity_value_with_growth", "month"]]
             st.line_chart(df_home_equity.set_index("month"))
-        #budget breakdown as a pie chart
+        
         if len(list(user.budget.keys())) > 1:
             budget = user.budget
-            #formatted category_name: {value: int, frequency: str (monthly/annual)}
             categories = list(budget.keys())
             values = [budget[category]["value"] if budget[category]["frequency"] == "monthly" else budget[category]["value"]/12 for category in categories]
             st.title("Here is a breakdown of your proposed budget:")
             orange_blue_palette = [
-                '#FFF5EB',  # Very light orange
-                '#FFE6CC',  # Light orange
-                '#FFD8B2',  # Soft orange
-                '#FFCA99',  # Moderate orange
-                '#FFBB80',  # Medium orange
-                '#FFAC66',  # Bright orange
-                '#FF9E4D',  # Strong orange
-                '#FF8F33',  # Deep orange
-                '#FF801A',  # Very deep orange
-                '#FF7000',  # Dark orange, next is dard red then very deep red and so on
-                '#FF5F00', # Very dark orange
-                '#FF4E00',  # Very dark red
-                '#FF3D00',  # Very deep red, next is deep red
-                '#FF2C00',  # Deep red
-                '#FF1B00',  # Strong red
-                '#FF0A00',  # Bright red
-                '#F50000',  # Moderate red
-                '#E60000',  # Soft red
+                '#FFF5EB', '#FFE6CC', '#FFD8B2', '#FFCA99', '#FFBB80', '#FFAC66',
+                '#FF9E4D', '#FF8F33', '#FF801A', '#FF7000', '#FF5F00', '#FF4E00',
+                '#FF3D00', '#FF2C00', '#FF1B00', '#FF0A00', '#F50000', '#E60000'
             ]
-            # Create a pie chart
             fig1, ax1 = plt.subplots()
             plt.pie(values, labels=categories, autopct='%1.1f%%', colors=orange_blue_palette)
-            ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+            ax1.axis('equal')
             st.pyplot(fig1)
             st.subheader(f"Average Monthly Budget: ${round(sum(values), 2)}")
-            #raw data table
-            #! use some colors for the top row
+        
         st.title("Raw Data")
         df_styled = ts_df.style.set_properties(**{'background-color': colors[1]}, subset=['net_worth']).set_properties(**{'background-color': colors[0]}, subset=['investments'])
         st.write(df_styled)
         return user
     
-    
     return None
 
-# Run the Streamlit app
 if __name__ == "__main__":
-    user = create_user()
+    user_data = load_user_file()
+    create_user(user_data)
