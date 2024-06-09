@@ -5,12 +5,14 @@ import uuid
 import json
 import matplotlib.pyplot as plt
 
-cwd = os.getcwd()
-
+# Set page configuration
 st.set_page_config(page_title="FIRE Simulator", page_icon="🔥")
 
-# Adjust the path to your FIRE.py file
-exec(open(os.path.join(cwd, "FIRE.py")).read())
+# Attempt to load FIRE.py script
+try:
+    exec(open(os.path.join(os.getcwd(), "FIRE.py")).read())
+except FileNotFoundError as e:
+    st.error(f"Error loading FIRE.py: {e}")
 
 def load_user_file():
     uploaded_file = st.file_uploader("Upload User Configuration", type="json")
@@ -294,3 +296,7 @@ def create_user(user_data=None):
         
         user_json = json.dumps(user_data, indent=4)
         st.download_button('Download User Configuration', user_json, file_name='user.json', mime='application/json')
+
+if __name__ == "__main__":
+    user_data = load_user_file()
+    create_user(user_data)
