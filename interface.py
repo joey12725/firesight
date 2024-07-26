@@ -20,6 +20,20 @@ def load_user_file():
         return json.load(uploaded_file)
     return None
 
+global tooltips 
+tooltips = st.toggle("Would you like to see tooltips?", value=True)
+
+def tooltip(text, type="caption"):
+    if tooltips:
+        if type == "caption":
+            st.caption(text)
+        elif type == "markdown":
+            st.markdown(f"🛈 {text}")
+        elif type == "latex":
+            st.latex(f"🛈 {text}")
+        elif type == "title":
+            st.title(f"🛈 {text}")
+
 def generate_repeating_field_group(keys, group_id, default_values=None):
     # Initialize the rows if not already in session state
     if f"rows_{group_id}" not in st.session_state or not st.session_state[f"rows_{group_id}"]:
@@ -80,8 +94,8 @@ def generate_repeating_field_group(keys, group_id, default_values=None):
 
 def create_user(user_data=None):
     st.title("FIRE Simulator🔥")
-    st.write("FIRE (Financial Independence, Retire Early) is about having enough and trading money for time. This simulator helps you explore how attainable FIRE is for you.")
-    st.caption("Please note: If you have a partner, use either average or combined numbers as makes sense (combined income, average age).")
+    tooltip("FIRE (Financial Independence, Retire Early) is a financial movement that emphasizes achieving financial independence and retiring earlier than the traditional retirement age. The core philosophy revolves around the idea of gaining control over your time by attaining a level of financial security that allows you to choose how you spend your days, free from the constraints of mandatory work.This simulator helps you explore how attainable FIRE is for you.", type="markdown")
+    tooltip("Please note: If you have a partner, use either average or combined numbers as makes sense (combined income, average age).")
 
     # Default values or loaded user data
     if user_data:
@@ -91,8 +105,6 @@ def create_user(user_data=None):
     else:
         simulate_years = 10
         num_simulations = 10
-
-    num_simulations = st.slider("Number of Simulations", min_value=1, max_value=50, value=num_simulations, step=1, format="Count: %d", key="num_simulations_slider")
 
     if user_data:
         # Directly use the lists from the JSON data
@@ -157,19 +169,25 @@ def create_user(user_data=None):
 
     # Get user input
     age = st.number_input("Age", min_value=0, value=age, step=1)
-    married = st.checkbox("Married", value=married)
+    married = st.checkbox("Are you married?", value=married)
     income = st.number_input("Income", min_value=0.0, value=income, step=1000.0, help="This is your annual gross income from all sources.")
-    income_growth = st.slider("Income Growth", min_value=0.0, max_value=0.2, value=income_growth, step=0.01, help="This is the percentage that you expect your income to increase each year.")
-    risk_tolerance = st.slider("Risk Tolerance", min_value=0.0, max_value=1.0, value=risk_tolerance, step=0.01, help="A risk tolerance of 0.5 adheres to the 4% rule, which is a theory stating that you can safely withdraw 4% of your retirement portfolio each year without running out. Lower values are more conservative, higher values more aggressive.")
-    expenditure_growth_beyond_inflation = st.slider("Expenditure Growth Beyond Inflation", min_value=0.0, max_value=0.1, value=expenditure_growth_beyond_inflation, step=0.01, help="This is your lifestyle creep percentage each year beyond inflation.")
+    tooltip("This should be your gross annual income, combined if you are married, from all sources")
+    income_growth = st.slider("Income Growth", min_value=0.0, max_value=0.2, value=income_growth, step=0.01)
+    tooltip("This is the percentage that you expect your income to increase each year.")
+    risk_tolerance = st.slider("Risk Tolerance", min_value=0.0, max_value=1.0, value=risk_tolerance, step=0.01)
+    tooltip(r"A risk tolerance of 0.5 adheres to the 4% rule, which is a theory stating that you can safely withdraw 4% of your retirement portfolio each year without running out. Lower values are more conservative, higher values more aggressive.")
+    expenditure_growth_beyond_inflation = st.slider("Expenditure Growth Beyond Inflation", min_value=0.0, max_value=0.1, value=expenditure_growth_beyond_inflation, step=0.01)
+    tooltip("This is your lifestyle creep percentage each year beyond inflation.")
     current_savings = st.number_input("Current Savings", min_value=0.0, value=current_savings, step=1000.0)
     max_401k_contribution = st.checkbox("Max 401k Contribution", value=max_401k_contribution)
     max_ira_contribution = st.checkbox("Max IRA Contribution", value=max_ira_contribution)
     max_hsa_contribution = st.checkbox("Max HSA Contribution", value=max_hsa_contribution)
     other_tax_sheltered_income = st.number_input("Other Tax Sheltered Income", min_value=0.0, value=other_tax_sheltered_income, step=1000.0)
-    emergency_fund_target = st.number_input("Emergency Fund Target", min_value=0.0, value=emergency_fund_target, step=1000.0, help="This should represent at least 3-6 months of expenses.")
+    emergency_fund_target = st.number_input("Emergency Fund Target", min_value=0.0, value=emergency_fund_target, step=1000.0)
+    tooltip("This should represent at least 3-6 months of expenses.")
     inflation = st.slider("Inflation", min_value=0.0, max_value=0.1, value=inflation, step=0.01)
-    average_life_event_cost = st.number_input("Average Life Event Cost", min_value=0.0, value=average_life_event_cost, step=1000.0, help="It is important to model the unexpected for life events that you can't budget for. These events will come out of your emergency fund.")
+    average_life_event_cost = st.number_input("Average Life Event Cost", min_value=0.0, value=average_life_event_cost, step=1000.0)
+    tooltip("It is important to model the unexpected for life events that you can't budget for. These events will come out of your emergency fund.")
     average_life_event_stdev = st.number_input("Life Event Standard Deviation", min_value=0.0, value=average_life_event_stdev, step=1000.0)
     average_life_event_frequency = st.slider("Average Life Events per year", min_value=0, max_value=10, value=average_life_event_frequency, step=1)
     
@@ -193,13 +211,34 @@ def create_user(user_data=None):
     }
 
     st.subheader("Budget Items")
+    tooltip("This budget should represent your actual monthly expenses, including things like healthcare premiums that are deducted from your paycheck, but not things like 401k contributions. Do not include savings in this budget, this is only for your expendatures, all of you income not used in the budget will be invested in your investment portfolio.")
+    tooltip(r"A typical FIRE strategy includes high savings rates, often between 50-70% of income allowing your nest egg to be built as quickly as possible.")
+    tooltip("If rent is a budget category and you plan to purchase a home, it will automatically be removed at your planned home purchase date and replaced with a mortgage payment.")
     budget_items = generate_repeating_field_group(budget_item_keys, "budget", budget_items_data)
 
     st.subheader("Investment Vehicles")
-    st.write("Investment vehicles like index funds help diversify your portfolio. Make sure the ratios of all vehicles add up to 1.")
+    tooltip("""
+Investment vehicles are essential tools for those pursuing Financial Independence, Retire Early (FIRE). These vehicles help grow wealth effectively, enabling individuals to achieve financial independence sooner. Key investment vehicles for FIRE include:
+
+1. **Stocks and Bonds**: A diversified portfolio of stocks and bonds can provide steady growth and income. Stocks offer higher returns with higher risk, while bonds provide stability and regular interest payments.
+
+2. **Index Funds and ETFs**: These funds track market indices, offering diversification and lower fees. They are ideal for passive investors seeking consistent market returns over time.
+
+3. **Real Estate**: Investing in rental properties or REITs (Real Estate Investment Trusts) can provide passive income and capital appreciation. Real estate is a tangible asset that often appreciates over the long term.
+
+4. **Retirement Accounts**: 401(k), IRA, and Roth IRA accounts offer tax advantages that can significantly boost savings. Contributions to these accounts grow tax-deferred or tax-free, depending on the account type.
+
+5. **High-Yield Savings Accounts and CDs**: For those seeking low-risk options, high-yield savings accounts and certificates of deposit (CDs) offer better returns than traditional savings accounts while ensuring capital preservation.
+
+6. **Peer-to-Peer Lending**: Platforms like LendingClub and Prosper allow individuals to lend money to others in exchange for interest payments, providing an alternative income stream.
+
+By strategically using these investment vehicles, individuals can accelerate their journey toward financial independence and early retirement. Diversification, consistent contributions, and understanding each vehicle's risk and return profile are crucial for achieving FIRE goals.
+""", type="markdown"
+                )
     investment_vehicles = generate_repeating_field_group(investment_vehicle_keys, "investment", investment_vehicles_data)
 
     st.subheader("Major Expenses")
+    tooltip("Major expenses are one-time or infrequent expenses that you anticipate in the future. These could include things like a wedding, a new car, or a vacation. These expenses will be deducted from your savings when they occur.")
     major_expenses = generate_repeating_field_group(major_expense_keys, "major_expense", major_expenses_data)
 
     
@@ -238,14 +277,16 @@ def create_user(user_data=None):
 
         location_change_date = st.date_input("Location Change Date", value=location_change_date_value, min_value=datetime.date.today())
         location_change_moving_cost = st.number_input("Moving Cost", min_value=0.0, value=location_change_data.get("moving_cost", 5000.0), step=1000.0)
+        tooltip("This is the cost of moving to a new location. It is a one-time expense.")
         location_change_col_adjustment = st.slider("Cost of Living Adjustment", min_value=0.0, max_value=2.0, value=location_change_data.get("col_adjustment", 1.0), step=0.01, help="The ratio between your costs where you are and where you want to move. [Learn more](https://www.nerdwallet.com/cost-of-living-calculator).")
+        tooltip("This is the ratio between your costs where you are now and where you are moving. All your expenses will be multiplied by this ratio after your move date to adjust for the cost of living.")
         location_change_state_income_tax = st.number_input("State Income Tax", min_value=0.0, value=location_change_data.get("state_income_tax", 0.0), step=0.01)
         location_change_property_tax = st.number_input("Property Tax", min_value=0.0, value=location_change_data.get("property_tax", 0.0), step=0.01)
     
     post_retirement_expenses = st.number_input("Post Retirement Expenses", min_value=0.0, value=post_retirement_expenses, step=1000.0, help="What you want to live off of in your early retirement. It will grow with inflation.")
     average_post_retirement_income = st.number_input("Average Post Retirement Income (not including investments)", min_value=0.0, value=average_post_retirement_income, step=1000.0)
     simulate_years = st.slider("Simulation Years", min_value=1, max_value=50, value=simulate_years, step=1, key="simulate_years_slider")
-    
+    num_simulations = st.slider("Number of Simulations", min_value=1, max_value=50, value=num_simulations, step=1, format="Count: %d", key="num_simulations_slider")
     if st.button("Run Simulation"):
         user = User()
         user.age = age
@@ -359,7 +400,7 @@ def create_user(user_data=None):
         top_range = round(average_retirement_age + stdev_retirement_age)
         st.title(f"Your Estimated Retirement Age is between :orange[{bottom_range}] and :orange[{top_range}] years old")
         #title for the data visualization
-        st.title(f"We ran 8 simulations of {simulate_years} years. Here are the results:")
+        st.title(f"We ran {num_simulations} simulations of {simulate_years} years. Here are the results:")
        
         df_net_worth = ts_df[["net_worth", "investments", "month"]]
         df_net_worth = df_net_worth.set_index("month")  # Set the index on the original DataFrame
