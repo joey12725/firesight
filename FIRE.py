@@ -8,7 +8,8 @@ import streamlit as st
 import datetime
 import pickle
 import concurrent.futures
-
+import threading
+import queue
 
 # Add relocation date with COL adjustment, Tax adjustment
 # Add "pay off mortgage" before retirement button
@@ -404,6 +405,7 @@ class User():
         for i in range(years):
             self.step_year()
 
+
     def save_user_as_file(self):
         with open('user_data.pkl', 'wb') as outp:
             pickle.dump(self, outp, pickle.HIGHEST_PROTOCOL)
@@ -413,38 +415,59 @@ class User():
             user = pickle.load(inp)
             self.__dict__.update(user.__dict__)
 
-
-
 def run_simulation(user, years):
-    user.run_simulation(years)
+    total_months = years * 12
+    for month in range(total_months):
+        user.step_month()
     return user.time_series, user.retirement_age
 
-def monte_carlo_simulation(years=20, simulations=1000, num_threads=4):
-    user = User()
-    user.load_user_from_file()
+# Define a global counter and lock
+global_months_counter = 0
+threadLock = threading.Lock()
+# Initialize progress state
+if 'progress' not in st.session_state:
+    st.session_state['progress'] = 0
+
+def increment_counter(months):
+    global global_months_counter
+    with threadLock:
+        global_months_counter += months
+
+def update_progress_bar(total_months, pb=None):
+    if not pb:
+        pb = st.progress(0)
+    st.session_state['progress'] = global_months_counter / total_months
+    pb.progress(st.session_state['progress'])
+
+def monte_carlo_simulation(years=20, simulations=1000, num_threads=4, user=User()):
     
     all_time_series = []
     retirement_ages = []
-    
+
+    total_months = years * 12 * simulations
+    progress_bar = st.progress(0)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = []
         for _ in range(simulations):
             user_copy = User()
             user_copy.__dict__.update(user.__dict__)
             futures.append(executor.submit(run_simulation, user_copy, years))
-        
+
         for future in concurrent.futures.as_completed(futures):
             time_series, retirement_age = future.result()
             all_time_series.append(time_series)
             retirement_ages.append(retirement_age)
-    
+            # Update the global counter and progress bar
+            increment_counter(years * 12)
+            update_progress_bar(total_months, progress_bar)
+
     anyFalse = False
     for age in retirement_ages:
         if age == False:
             retirement_ages.remove(age)
             anyFalse = True
     if anyFalse:
-        st.write("Some simulations did not reach the retirement goal, expand the simulation time for more accurate results.")
+        st.warning("Some simulations did not reach the retirement goal, expand the simulation time for more accurate results.")
     
     combined_time_series = pd.concat(all_time_series, ignore_index=True)
     average_time_series = combined_time_series.groupby('month').mean().reset_index()
