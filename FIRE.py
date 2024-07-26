@@ -11,8 +11,16 @@ import concurrent.futures
 import threading
 import queue
 
-# Add relocation date with COL adjustment, Tax adjustment
-# Add "pay off mortgage" before retirement button
+# Load state taxes data
+with open('statetaxes.json', 'r') as file:
+    state_taxes = json.load(file)['states']
+
+# Find state tax data
+def get_state_tax_data(state_name):
+    for state in state_taxes:
+        if state['name'] == state_name:
+            return state
+    return None
 
 class Home:
     def __init__(self, purchase_date, purchase_price, down_payment, mortgage_rate, mortgage_term_years,
@@ -85,8 +93,8 @@ class Home:
             self.home_equity = self.home_value
         
         return self.monthly_payment
-    
-class User():
+
+class User:
     def __init__(self):
         self.age = 0
         self.income = 0
@@ -128,18 +136,8 @@ class User():
         self.pay_off_mortgage_before_retirement = False
         self.post_retirement_expenses = 0
         self.average_post_retirement_income = 0
-        retirement_income_ratio_brackets = {.1: .025, .25: .03, .75: .04, .85: .05, 1: .06}
-        #bracket connects risk tolerance to retirement income ratio
-        if self.risk_tolerance < .1:
-            self.retirement_income_ratio = retirement_income_ratio_brackets[.1]
-        elif self.risk_tolerance < .25:
-            self.retirement_income_ratio = retirement_income_ratio_brackets[.25]
-        elif self.risk_tolerance < .75:
-            self.retirement_income_ratio = retirement_income_ratio_brackets[.75]
-        elif self.risk_tolerance < .85:
-            self.retirement_income_ratio = retirement_income_ratio_brackets[.85]
-        else:
-            self.retirement_income_ratio = retirement_income_ratio_brackets[1]
+        self.retirement_income_ratio_brackets = {.1: .025, .25: .03, .75: .04, .85: .05, 1: .06}
+        self.retirement_income_ratio = self.get_retirement_income_ratio()
         self.retirement_goal = (self.post_retirement_expenses - self.average_post_retirement_income) / self.retirement_income_ratio
         self.retirement_age = False
         self.location_change = False
@@ -148,6 +146,31 @@ class User():
         self.location_state_income_tax_adjustment = 0
         self.location_change_date = None
         self.location_change_moving_costs = 0
+        self.location_change_state = "None"
+        self.state = "None"
+        self.state_tax_data = get_state_tax_data(self.state)
+
+
+    def get_retirement_income_ratio(self):
+        if self.risk_tolerance < .1:
+            return self.retirement_income_ratio_brackets[.1]
+        elif self.risk_tolerance < .25:
+            return self.retirement_income_ratio_brackets[.25]
+        elif self.risk_tolerance < .75:
+            return self.retirement_income_ratio_brackets[.75]
+        elif self.risk_tolerance < .85:
+            return self.retirement_income_ratio_brackets[.85]
+        else:
+            return self.retirement_income_ratio_brackets[1]
+
+    def calculate_state_income_tax(self, income):
+        if not self.state_tax_data or self.state_tax_data['income_tax'] == 'none':
+            return 0
+        tax = 0
+        for bracket in self.state_tax_data['income_tax']:
+            if income > bracket['bracket']:
+                tax += (income - bracket['bracket']) * (bracket['rate'] / 100)
+        return tax
 
     def calculate_taxes(self, expenses):
         federal_taxes = 0
@@ -166,7 +189,7 @@ class User():
         married_401k_limit = 76500
         single_ira_limit = 6500
         married_ira_limit = 13000
-        state_income_tax_rate = self.location_state_income_tax_adjustment
+        
         # Calculate Social Security and Medicare taxes
         social_security_tax_rate = 0.062
         medicare_tax_rate = 0.0145
@@ -182,7 +205,7 @@ class User():
         max_ira = min(married_ira_limit if self.married else single_ira_limit, available_income - max_401k)
         
         tmp_income = self.income
-        state_income_tax = tmp_income * state_income_tax_rate
+        state_income_tax = self.calculate_state_income_tax(tmp_income)
         deductions += max_401k if self.max_401k_contribution else 0
         deductions += max_ira if self.max_ira_contribution else 0
         deductions += self.other_tax_sheltered_income
@@ -271,7 +294,6 @@ class User():
                 expenses.append(value.get("value", 0))
         return sum(expenses)
 
-
     def get_monthly_expenses(self):
         expenses = []
         for value in self.budget.values():
@@ -284,7 +306,8 @@ class User():
     def check_home_purchase(self):
         if self.home_purchase_date and not self.owns_home:
             if self.time.date() > self.home_purchase_date:
-                self.home = Home(self.home_purchase_date, self.home_purchase_price, self.down_payment, self.mortgage_rate, self.mortgage_term_years, property_tax_rate=self.property_tax)
+                state_property_tax_rate = self.state_tax_data['property_tax'] / 100 if self.state_tax_data else 0
+                self.home = Home(self.home_purchase_date, self.home_purchase_price, self.down_payment, self.mortgage_rate, self.mortgage_term_years, property_tax_rate=state_property_tax_rate)
                 self.investments -= self.home.down_payment
                 self.owns_home = True
             if "rent" in self.budget.keys() and self.owns_home:
@@ -366,11 +389,13 @@ class User():
             self.time_series = pd.concat([self.time_series, pd.DataFrame(row, index=[0])], ignore_index=True)
         #if location change and the date of the location change is this month, multiply each budget item by the COL adjustment
         if self.location_change and self.location_change_date < self.time.date():
+            self.state = self.location_change_state
+
             for key in self.budget.keys():
                 self.budget[key]["value"] *= self.location_col_adjustment    
             if self.owns_home:
                 self.home.hoa *= self.location_col_adjustment
-                self.home.property_tax_rate = self.location_property_tax_adjustment
+                self.home.property_tax_rate = self.location_property_tax_adjustment + self.state_tax_data['property_tax'] / 100 if self.state_tax_data else 0
             self.location_change = False
         elif self.location_change and self.location_change_date > self.time.date() and self.location_change_moving_costs > 0:
             #add major expense for moving costs

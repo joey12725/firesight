@@ -118,6 +118,7 @@ def create_user(user_data=None):
         major_expenses_data = []
     if user_data:
         age = user_data.get("age", 22)
+        state = user_data.get("state", "California")
         income = user_data.get("income", 95000.0)
         income_growth = user_data.get("income_growth", 0.03)
         risk_tolerance = user_data.get("risk_tolerance", 0.5)
@@ -166,9 +167,12 @@ def create_user(user_data=None):
         post_retirement_expenses = 0.0
         average_post_retirement_income = 0.0
         simulate_years = 10
+        state = "California"
 
     # Get user input
     age = st.number_input("Age", min_value=0, value=age, step=1)
+    states = ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming", "Washington D.C.", "Puerto Rico", "None"]
+    state = st.selectbox("State", options=states, index=states.index(state))
     married = st.checkbox("Are you married?", value=married)
     income = st.number_input("Income", min_value=0.0, value=income, step=1000.0, help="This is your annual gross income from all sources.")
     tooltip("This should be your gross annual income, combined if you are married, from all sources")
@@ -183,6 +187,7 @@ def create_user(user_data=None):
     max_ira_contribution = st.checkbox("Max IRA Contribution", value=max_ira_contribution)
     max_hsa_contribution = st.checkbox("Max HSA Contribution", value=max_hsa_contribution)
     other_tax_sheltered_income = st.number_input("Other Tax Sheltered Income", min_value=0.0, value=other_tax_sheltered_income, step=1000.0)
+    tooltip("This is a portion of your total income, not additional income (e.g., charitable contributions or health savings account contributions below the maximum).")
     emergency_fund_target = st.number_input("Emergency Fund Target", min_value=0.0, value=emergency_fund_target, step=1000.0)
     tooltip("This should represent at least 3-6 months of expenses.")
     inflation = st.slider("Inflation", min_value=0.0, max_value=0.1, value=inflation, step=0.01)
@@ -258,12 +263,13 @@ By strategically using these investment vehicles, individuals can accelerate the
         home_purchase_date = st.date_input("Home Purchase Date", value=home_purchase_date_value, min_value=datetime.date.today())
         home_purchase_price = st.number_input("Home Purchase Price", min_value=0.0, value=home_purchase_data.get("price", 300000.0), step=10000.0)
         down_payment = st.number_input("Down Payment", min_value=0.0, value=home_purchase_data.get("down_payment", 60000.0), step=1000.0)
-        property_tax = st.number_input("Property Tax", min_value=0.0, max_value=0.5, value=home_purchase_data.get("property_tax", 0.02), step=0.005)
+        property_tax = st.number_input("Local Property Tax", min_value=0.0, max_value=0.5, value=home_purchase_data.get("property_tax", 0.02), step=0.005)
+        tooltip("This is the annual property tax rate for your area. It does not include your state's property tax.")
         mortgage_rate = st.slider("Mortgage Rate", min_value=0.0, max_value=0.1, value=home_purchase_data.get("mortgage_rate", 0.04), step=0.001)
         mortgage_term_years = st.slider("Mortgage Term (Years)", min_value=10, max_value=30, value=home_purchase_data.get("mortgage_term_years", 30), step=1)
         pay_off_mortgage_before_retirement = st.checkbox("Pay Off Mortgage Before Retirement", value=home_purchase_data.get("pay_off_before_retirement", False))
     
-    location_change = st.checkbox("Plan to Change Location (domestic only)", value=location_change_data.get("date", False) != False)
+    location_change = st.checkbox("Plan to Change Location (domestic only)", value=False)
     if location_change:
         st.subheader("Location Change Details")
         location_change_date_default = "2025-01-01"
@@ -278,15 +284,19 @@ By strategically using these investment vehicles, individuals can accelerate the
         location_change_date = st.date_input("Location Change Date", value=location_change_date_value, min_value=datetime.date.today())
         location_change_moving_cost = st.number_input("Moving Cost", min_value=0.0, value=location_change_data.get("moving_cost", 5000.0), step=1000.0)
         tooltip("This is the cost of moving to a new location. It is a one-time expense.")
-        location_change_col_adjustment = st.slider("Cost of Living Adjustment", min_value=0.0, max_value=2.0, value=location_change_data.get("col_adjustment", 1.0), step=0.01, help="The ratio between your costs where you are and where you want to move. [Learn more](https://www.nerdwallet.com/cost-of-living-calculator).")
-        tooltip("This is the ratio between your costs where you are now and where you are moving. All your expenses will be multiplied by this ratio after your move date to adjust for the cost of living.")
-        location_change_state_income_tax = st.number_input("State Income Tax", min_value=0.0, value=location_change_data.get("state_income_tax", 0.0), step=0.01)
-        location_change_property_tax = st.number_input("Property Tax", min_value=0.0, value=location_change_data.get("property_tax", 0.0), step=0.01)
+        location_change_col_adjustment = st.slider("Cost of Living Adjustment", min_value=0.0, max_value=2.0, value=location_change_data.get("col_adjustment", 1.0), step=0.01)
+        tooltip("The ratio between your costs where you are and where you want to move. [Learn more](https://www.nerdwallet.com/cost-of-living-calculator).", type="markdown")
+        location_change_state = st.selectbox("State", options=states, index=states.index(location_change_data.get("state", "None")))
+
     
     post_retirement_expenses = st.number_input("Post Retirement Expenses", min_value=0.0, value=post_retirement_expenses, step=1000.0, help="What you want to live off of in your early retirement. It will grow with inflation.")
+    tooltip("This is the amount you expect to spend each year in retirement. It should be adjusted for inflation.")
     average_post_retirement_income = st.number_input("Average Post Retirement Income (not including investments)", min_value=0.0, value=average_post_retirement_income, step=1000.0)
+    tooltip("This is the amount you expect to earn each year in retirement outside of your investment. It should be adjusted for inflation.")
     simulate_years = st.slider("Simulation Years", min_value=1, max_value=50, value=simulate_years, step=1, key="simulate_years_slider")
+    tooltip("This is the number of years you want to simulate to see if you can retire early. It should be a few years longer than your expected retirement age.")
     num_simulations = st.slider("Number of Simulations", min_value=1, max_value=50, value=num_simulations, step=1, format="Count: %d", key="num_simulations_slider")
+    tooltip("This is the number of simulations you want to run to see if you can retire early. More simulations will give you a more accurate result, but a longer time to compute.")
     if st.button("Run Simulation"):
         user = User()
         user.age = age
@@ -340,8 +350,8 @@ By strategically using these investment vehicles, individuals can accelerate the
             user.location_change_date = location_change_date
             user.location_change_moving_costs = location_change_moving_cost
             user.location_col_adjustment = location_change_col_adjustment
-            user.location_property_tax_adjustment = location_change_property_tax
-            user.location_state_income_tax_adjustment = location_change_state_income_tax
+            user.location_change_state = location_change_state
+            
         
         st.success("Running Simulation...")
         user_data = {
@@ -377,8 +387,7 @@ By strategically using these investment vehicles, individuals can accelerate the
                 "date": str(location_change_date) if location_change else None,
                 "moving_cost": location_change_moving_cost if location_change else None,
                 "col_adjustment": location_change_col_adjustment if location_change else None,
-                "state_income_tax": location_change_state_income_tax if location_change else None,
-                "property_tax": location_change_property_tax if location_change else None,
+                "state": location_change_state if location_change else None
             },
             "post_retirement_expenses": post_retirement_expenses,
             "average_post_retirement_income": average_post_retirement_income,
@@ -387,7 +396,8 @@ By strategically using these investment vehicles, individuals can accelerate the
             "investment_vehicles":investment_vehicles,
             #convert dates to iso format strings for json serialization
             "major_expenses": [{"name": expense["name"], "cost": expense["cost"], "date": expense["date"].isoformat()} for expense in major_expenses],
-            "budget_items": budget_items
+            "budget_items": budget_items,
+            "state": state
         }
         
         user_json = json.dumps(user_data, indent=4)
