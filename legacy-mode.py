@@ -15,6 +15,7 @@ except FileNotFoundError as e:
     st.error(f"Error loading FIRE.py: {e}")
 
 def load_user_file():
+    st.write("upload file")
     uploaded_file = st.file_uploader("Been here before? Upload your user profile:", type="json")
     if uploaded_file is not None:
         return json.load(uploaded_file)
@@ -331,7 +332,7 @@ By strategically using these investment vehicles, individuals can accelerate the
             st.error("The ratios of investment vehicles must add up to 1.")
         
         for investment_vehicle in investment_vehicles:
-            user.add_invstment_vehicle(investment_vehicle["name"], investment_vehicle["annual_returns"], investment_vehicle["standard_deviation"], investment_vehicle["ratio"])
+            user.add_investment_vehicle(investment_vehicle["name"], investment_vehicle["annual_returns"], investment_vehicle["standard_deviation"], investment_vehicle["ratio"])
         
         for major_expense in major_expenses:
             user.add_major_expense(major_expense["name"], major_expense["cost"], major_expense["date"])
@@ -412,12 +413,14 @@ By strategically using these investment vehicles, individuals can accelerate the
         #title for the data visualization
         st.title(f"We ran {num_simulations} simulations of {simulate_years} years. Here are the results:")
        
+        st.subheader(f"Here is Your Projected Net Worth and Investments Over The Next {simulate_years} Years:")
         df_net_worth = ts_df[["net_worth", "investments", "month"]]
         df_net_worth = df_net_worth.set_index("month")  # Set the index on the original DataFrame
         df_net_worth_styled = df_net_worth.style.set_properties(**{'color': colors[0]}, subset=['net_worth']).set_properties(**{'color': colors[1]}, subset=['investments'])
         st.line_chart(df_net_worth_styled)
         #Line chart with home equity value with and without value growth
         if user.home_purchase_date is not None:
+            st.subheader("Your Home Equity")
             df_home_equity = ts_df[["home_equity_value_with_growth", "month"]]
             st.line_chart(df_home_equity.set_index("month"))
         #budget breakdown as a pie chart
@@ -426,7 +429,7 @@ By strategically using these investment vehicles, individuals can accelerate the
             #formatted category_name: {value: int, frequency: str (monthly/annual)}
             categories = list(budget.keys())
             values = [budget[category]["value"] if budget[category]["frequency"] == "monthly" else budget[category]["value"]/12 for category in categories]
-            st.title("Here is a breakdown of your proposed budget:")
+            st.subheader("Here is a breakdown of your proposed budget:")
             orange_blue_palette = [
                 '#FFF5EB',  # Very light orange
                 '#FFE6CC',  # Light orange
@@ -455,7 +458,7 @@ By strategically using these investment vehicles, individuals can accelerate the
             st.subheader(f"Average Monthly Budget: ${round(sum(values), 2)}")
             #raw data table
             #! use some colors for the top row
-        st.title("Raw Data")
+        st.subheader("Here is the raw data for your simulation:")
         df_styled = ts_df.style.set_properties(**{'background-color': colors[1]}, subset=['net_worth']).set_properties(**{'background-color': colors[0]}, subset=['investments'])
         st.write(df_styled)
         return user
