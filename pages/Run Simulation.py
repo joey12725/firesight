@@ -29,19 +29,6 @@ def load_user_profile(user_id):
         return json.loads(profile_json)
     return None
 
-global tooltips 
-tooltips = st.toggle("Would you like to see tooltips?", value=True)
-
-def tooltip(text, type="caption"):
-    if tooltips:
-        if type == "caption":
-            st.caption(text)
-        elif type == "markdown":
-            st.markdown(f"🛈 {text}")
-        elif type == "latex":
-            st.latex(f"🛈 {text}")
-        elif type == "title":
-            st.title(f"🛈 {text}")
 
 def run_simulation_local(user_data):
     user = User()
