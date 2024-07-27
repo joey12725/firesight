@@ -7,9 +7,15 @@ from boto3.dynamodb.conditions import Key
 import matplotlib.pyplot as plt
 
 # DynamoDB configuration
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
-table = dynamodb.Table('firesight-users')
-
+try:
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+    table = dynamodb.Table('firesight-users')
+except:
+    AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-2', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+    table = dynamodb.Table('firesight-users')
+    
 # Set page configuration
 st.set_page_config(page_title="FIRE Simulator", page_icon="🔥")
 
