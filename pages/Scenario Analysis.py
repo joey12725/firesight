@@ -7,9 +7,15 @@ import pandas as pd
 import os
 
 # DynamoDB configuration
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
-table = dynamodb.Table('firesight-users')
-
+try:
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+    table = dynamodb.Table('firesight-users')
+except:
+    AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-2', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+    table = dynamodb.Table('firesight-users')
+    
 # Set page configuration
 st.set_page_config(page_title="FIRESight - Scenario Analysis", page_icon="🔍")
 
@@ -147,7 +153,7 @@ if __name__ == "__main__":
         user_data = load_user_profile(user_id)
         if user_data:
             st.header("Scenario Analysis")
-            st.subheader("Edit the parameters for your new scenario:")
+            st.subheader("Compare your profile a version with hypothetical changes and see how it could impact your financial independence goals:")
 
             # Load existing settings but allow modifications for scenario analysis
             income = st.number_input("Income", value=user_data.get("income", 95000.0))
