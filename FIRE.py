@@ -504,6 +504,10 @@ def increment_counter(months):
     with threadLock:
         global_months_counter += months
 
+def reset_counter():
+    global global_months_counter
+    global_months_counter = 0
+
 def update_progress_bar(total_months, pb=None):
     if not pb:
         pb = st.progress(0)
@@ -545,4 +549,5 @@ def monte_carlo_simulation(years=20, simulations=1000, num_threads=4, user=User(
     combined_time_series = pd.concat(all_time_series, ignore_index=True)
     average_time_series = combined_time_series.groupby('month').mean().reset_index()
     
+    reset_counter()
     return average_time_series, average_retirement_age, stdev_retirement_age
