@@ -15,7 +15,7 @@ except:
     AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
     dynamodb = boto3.resource('dynamodb', region_name='us-east-2', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
     table = dynamodb.Table('firesight-users')
-    
+
 # Set page configuration
 st.set_page_config(page_title="FIRESight - Scenario Analysis", page_icon="🔍")
 
@@ -310,7 +310,8 @@ if __name__ == "__main__":
                 retirement_age_change_months = (retirement_age_change_years - int(retirement_age_change_years)) * 12
                 retirement_age_change_days = (retirement_age_change_months - int(retirement_age_change_months)) * 30
 
-                st.title(f"In this new scenario, you would be able to retire {int(abs(retirement_age_change_years))} years, {int(abs(retirement_age_change_months))} months, {int(abs(retirement_age_change_days))} days {"earlier" if retirement_age_change_years < 0 else "later"}.")
+                st.title(f"In this new scenario, you would be able to retire {int(abs(retirement_age_change_years))} years, {int(abs(retirement_age_change_months))} months, {int(abs(retirement_age_change_days))} days {'earlier' if retirement_age_change_years < 0 else 'later'}.")
+
 
                 # Display comparison charts
                 st.subheader("Comparison of Projected Net Worth and Investments")
