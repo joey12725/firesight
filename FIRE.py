@@ -110,6 +110,65 @@ class Home:
         
         return self.monthly_payment
 
+class InvestmentVehicle:
+    def __init__(self, name, annual_returns, standard_deviation, ratio, distribution_type):
+        self.name = name
+        self.annual_returns = annual_returns
+        self.standard_deviation = standard_deviation
+        self.ratio = ratio
+        self.distribution_type = distribution_type
+        self.current_month = random.randint(1, 12)
+        self.current_year = 0
+        self.previous_year_return = 0
+        self.current_year_return = 0
+        
+        if distribution_type in ['historic-stocks', 'historic-real-estate']:
+            data_file = 'stocks.csv' if distribution_type == 'historic-stocks' else 'realestate.csv'
+            self.historic_data = pd.read_csv(data_file)
+            self.start_index = random.randint(0, len(self.historic_data) - 1)
+        
+    def get_monthly_return(self):
+        if self.distribution_type == 'normal-monthly':
+            return np.random.normal(self.annual_returns / 12, self.standard_deviation / math.sqrt(12))
+        elif self.distribution_type == 'normal-yearly-gradient':
+            if self.current_month == 1:
+                self.previous_year_return = self.current_year_return
+                self.current_year_return = np.random.normal(self.annual_returns, self.standard_deviation)
+            weight_current = self.current_month / 12
+            return (1 - weight_current) * self.previous_year_return / 12 + weight_current * self.current_year_return / 12
+        elif self.distribution_type in ['historic-stocks', 'historic-real-estate']:
+            index = (self.start_index + self.current_year * 12 + self.current_month - 1) % len(self.historic_data)
+            return self.historic_data.iloc[index]['Return']
+        
+    def increment_month(self):
+        self.current_month += 1
+        if self.current_month > 12:
+            self.current_month = 1
+            self.current_year += 1
+
+class MajorPurchase:
+    def __init__(self, name, cost, date, purchase_type, term=None, interest_rate=None, down_payment=None, monthly_payment=None):
+        self.name = name
+        self.cost = cost
+        self.date = ensure_date(date)
+        self.purchase_type = purchase_type  # 'cash', 'finance', or 'lease'
+        self.term = term
+        self.interest_rate = interest_rate
+        self.down_payment = down_payment
+        self.monthly_payment = monthly_payment
+        self.remaining_balance = cost if purchase_type == 'finance' else 0
+
+    def make_payment(self):
+        if self.purchase_type == 'finance':
+            interest = self.remaining_balance * (self.interest_rate / 12)
+            principal = self.monthly_payment - interest
+            self.remaining_balance -= principal
+            return self.monthly_payment
+        elif self.purchase_type == 'lease':
+            return self.monthly_payment
+        return 0
+
+
 class User:
     def __init__(self):
         self.age = 0
@@ -128,7 +187,7 @@ class User:
         self.investment_vehicles = []
         self.investments = 0
         self.post_retirement_expenses = 0
-        self.major_expenses = []
+        self.major_purchases = []
         self.married = False
         self.emergency_fund_current = 0
         self.emergency_fund_target = 0
@@ -273,33 +332,33 @@ class User:
         #st.write(f"tax on {income} is {federal_taxes + social_security_tax + medicare_tax}")
         return federal_taxes + social_security_tax + medicare_tax
         
-    def add_investment_vehicle(self, name, average_annual, std_dev, ratio=1):
-        self.investment_vehicles.append({"name": name, "average_annual":average_annual, "std_dev":std_dev, "ratio":ratio})
+    def add_investment_vehicle(self, name, annual_returns, standard_deviation, ratio, distribution_type):
+        self.investment_vehicles.append(InvestmentVehicle(name, annual_returns, standard_deviation, ratio, distribution_type))
     
-    def add_major_expense(self, name, cost, date):
-        date = ensure_date(date)
-        self.major_expenses.append({"name":name, "cost":cost, "date":date})
+    def add_major_purchase(self, name, cost, date, purchase_type, term=None, interest_rate=None, down_payment=None, monthly_payment=None):
+        purchase = MajorPurchase(name, cost, date, purchase_type, term, interest_rate, down_payment, monthly_payment)
+        self.major_purchases.append(purchase)
     
     def set_home_purchase_date(self, date):
         self.home_purchase_date = ensure_date(date)
         self.owns_home = False if datetime.datetime.now().date() < self.home_purchase_date else True
 
     def get_random_month_investment_return(self, investment_vehicle):
-        return np.random.normal(investment_vehicle["average_annual"]/12, investment_vehicle["std_dev"]/12)
+        return np.random.normal(investment_vehicle.annual_returns / 12, investment_vehicle.standard_deviation / math.sqrt(12))
         
-    def get_random_year_investment_return(self, investment_vehicle):
-        if isinstance(investment_vehicle, dict):
-            for vehicle_data in investment_vehicle.values():
-                return np.random.normal(vehicle_data["average_annual"], vehicle_data["std_dev"])
-        else:
-            return 0
+    def get_random_month_all_investment_returns(self):
+        total_return = 0
+        for vehicle in self.investment_vehicles:
+            total_return += vehicle.get_monthly_return() * vehicle.ratio
+            vehicle.increment_month()
+        return total_return
         
     def get_random_month_all_investment_returns(self):
         keys = ["average_annual", "std_dev", "ratio"]
-        return sum([self.get_random_month_investment_return(investment_vehicle)*investment_vehicle["ratio"] for investment_vehicle in self.investment_vehicles])
+        return sum([self.get_random_month_investment_return(investment_vehicle)*investment_vehicle.ratio for investment_vehicle in self.investment_vehicles])
     
     def get_random_year_all_investment_returns(self):
-        return sum([self.get_random_year_investment_return(investment_vehicle)*investment_vehicle["ratio"] for investment_vehicle in self.investment_vehicles])
+        return sum([self.get_random_year_investment_return(investment_vehicle)*investment_vehicle.ratio for investment_vehicle in self.investment_vehicles])
     
     def add_budget_item(self, item):
         self.budget[item["name"]] = {"value":item["value"], "frequency":item["frequency"]}
@@ -379,24 +438,27 @@ class User:
         self.investments *= investment_returns
 
         # check if major expenses are due
-        this_month_major_expense = 0
-        for major_expense in self.major_expenses:
-            # Ensure date comparison is done with datetime objects
-            major_expense_date = ensure_date(major_expense["date"])
-            
-            if (major_expense_date - self.time).days < 30.5:
-                self.investments -= major_expense["cost"]
-                self.major_expenses.remove(major_expense)
-                this_month_major_expense = major_expense["cost"]
+        for purchase in self.major_purchases:
+            if self.time >= purchase.date:
+                if purchase.purchase_type == 'cash':
+                    self.investments -= purchase.cost
+                    self.major_purchases.remove(purchase)
+                elif purchase.purchase_type in ['finance', 'lease']:
+                    if purchase.down_payment and purchase.down_payment > 0:
+                        self.investments -= purchase.down_payment
+                        purchase.down_payment = 0
+                    monthly_payment = purchase.make_payment()
+                    self.investments -= monthly_payment
+                    if purchase.purchase_type == 'finance' and purchase.remaining_balance <= 0:
+                        self.major_purchases.remove(purchase)
+                    elif purchase.purchase_type == 'lease' and (self.time - purchase.date).days >= purchase.term * 30:
+                        self.major_purchases.remove(purchase)
 
         # check if home purchase
         if self.check_home_purchase():
             self.home.make_payment(self.time)
 
         self.home_equity = 0 if not self.owns_home else self.home.home_equity
-        if self.current_savings > 0:
-            self.investments += self.current_savings
-            self.current_savings = 0
 
         # calculate net worth
         net_worth = self.investments + self.home_equity + self.emergency_fund_current
@@ -419,7 +481,6 @@ class User:
             "housing_cost": housing_cost,
             "investment_returns": investment_returns,
             "taxes": taxes,
-            "major_expenses": this_month_major_expense,
             "home_equity_value_with_growth": self.home_equity,
             "home_equity_value_without_growth": home_equity_value_without_growth,
             "investments": self.investments,
@@ -446,7 +507,7 @@ class User:
                 self.location_change = False
             elif self.location_change_date and self.location_change_date > self.time and self.location_change_moving_costs > 0:
                 # add major expense for moving costs
-                self.add_major_expense("moving costs", self.location_change_moving_costs, self.location_change_date)
+                self.add_major_purchase("moving costs", self.location_change_moving_costs, self.location_change_date)
                 self.location_change_moving_costs = 0
 
         self.time += timedelta(days=30.5)
@@ -486,12 +547,6 @@ class User:
             user = pickle.load(inp)
             self.__dict__.update(user.__dict__)
 
-def run_simulation(user, years):
-    total_months = years * 12
-    for month in range(total_months):
-        user.step_month()
-    return user.time_series, user.retirement_age
-
 # Define a global counter and lock
 global_months_counter = 0
 threadLock = threading.Lock()
@@ -515,7 +570,6 @@ def update_progress_bar(total_months, pb=None):
     pb.progress(st.session_state['progress'])
 
 def monte_carlo_simulation(years=20, simulations=1000, num_threads=4, user=User()):
-    
     all_time_series = []
     retirement_ages = []
 
@@ -526,6 +580,8 @@ def monte_carlo_simulation(years=20, simulations=1000, num_threads=4, user=User(
         for _ in range(simulations):
             user_copy = User()
             user_copy.__dict__.update(user.__dict__)
+            # Deep copy investment vehicles
+            user_copy.investment_vehicles = [InvestmentVehicle(v.name, v.annual_returns, v.standard_deviation, v.ratio, v.distribution_type) for v in user.investment_vehicles]
             futures.append(executor.submit(run_simulation, user_copy, years))
 
         for future in concurrent.futures.as_completed(futures):
@@ -541,13 +597,102 @@ def monte_carlo_simulation(years=20, simulations=1000, num_threads=4, user=User(
 
     if not valid_retirement_ages:
         st.warning("No simulations reached the retirement goal.")
-        return None, None, None
+        return None, None, None, None, None
 
     average_retirement_age = sum(valid_retirement_ages) / len(valid_retirement_ages)
     stdev_retirement_age = np.std(valid_retirement_ages)
     
     combined_time_series = pd.concat(all_time_series, ignore_index=True)
     average_time_series = combined_time_series.groupby('month').mean().reset_index()
-    
+
     reset_counter()
-    return average_time_series, average_retirement_age, stdev_retirement_age
+    return average_time_series, average_retirement_age, stdev_retirement_age, all_time_series, retirement_ages
+
+def run_simulation(user, years):
+    time_series = pd.DataFrame()
+    retirement_age = None
+
+    for _ in range(years * 12):
+        user.step_month()
+        if user.investments >= user.retirement_goal and retirement_age is None:
+            retirement_age = user.age
+
+    time_series = user.time_series
+    return time_series, retirement_age
+
+def run_simulation_local(user_data):
+    user = User()
+    user.age = user_data.get("age", 22)
+    user.income = user_data.get("income", 95000.0)
+    user.risk_tolerance = user_data.get("risk_tolerance", 0.5)
+    user.expenditure_growth_beyond_inflation = user_data.get("expenditure_growth_beyond_inflation", 0.03)
+    user.current_savings = user_data.get("current_savings", 25000.0)
+    user.max_401k_contribution = user_data.get("max_401k_contribution", True)
+    user.max_ira_contribution = user_data.get("max_ira_contribution", True)
+    user.max_hsa_contribution = user_data.get("max_hsa_contribution", False)
+    user.other_tax_sheltered_income = user_data.get("other_tax_sheltered_income", 0.0)
+    user.married = user_data.get("married", True)
+    user.emergency_fund_target = user_data.get("emergency_fund_target", 10000.0)
+    user.inflation = user_data.get("inflation", 0.03)
+    user.average_life_event_cost = user_data.get("average_life_event_cost", 1000.0)
+    user.average_life_event_stdev = user_data.get("average_life_event_stdev", 500.0)
+    user.average_life_event_frequency = user_data.get("average_life_event_frequency", 1)
+    user.post_retirement_expenses = user_data.get("post_retirement_expenses", 0.0)
+    user.average_post_retirement_income = user_data.get("average_post_retirement_income", 0.0)
+    user.income_growth = user_data.get("income_growth", 0.03)
+
+    for budget_item in user_data.get("budget_items", []):
+        formatted_budget_item = {
+            "name": budget_item["name"],
+            "value": budget_item["value"],
+            "frequency": budget_item["frequency"]
+        }
+        user.add_budget_item(formatted_budget_item)
+    
+    ratio_sum = sum([investment_vehicle["ratio"] for investment_vehicle in user_data.get("investment_vehicles", [])])
+    if ratio_sum != 1:
+        st.error("The ratios of investment vehicles must add up to 1.")
+    
+    for investment_vehicle in user_data.get("investment_vehicles", []):
+        user.add_investment_vehicle(
+            investment_vehicle["name"],
+            investment_vehicle["annual_returns"],
+            investment_vehicle["standard_deviation"],
+            investment_vehicle["ratio"],
+            investment_vehicle.get("distribution_type", "normal-monthly")  # Default to "normal-monthly" if not specified
+        )
+    
+    for major_purchase in user_data.get("major_purchases", []):
+        user.add_major_purchase(
+            major_purchase["name"],
+            major_purchase["cost"],
+            major_purchase["date"],
+            major_purchase["purchase_type"],
+            major_purchase.get("term"),
+            major_purchase.get("interest_rate"),
+            major_purchase.get("down_payment"),
+            major_purchase.get("monthly_payment")
+        )
+
+    if user_data.get("home_purchase", {}).get("price", 0) != 0:
+        user.home_purchase_date = user_data["home_purchase"]["date"]
+        user.home_purchase_price = user_data["home_purchase"]["price"]
+        user.down_payment = user_data["home_purchase"]["down_payment"]
+        user.mortgage_rate = user_data["home_purchase"]["mortgage_rate"]
+        user.mortgage_term_years = user_data["home_purchase"]["mortgage_term_years"]
+        user.pay_off_mortgage_before_retirement = user_data["home_purchase"]["pay_off_before_retirement"]
+        user.property_tax = user_data["home_purchase"]["property_tax"]
+    
+    if user_data.get("location_change", {}).get("date", None):
+        user.location_change = True
+        user.location_change_date = user_data["location_change"]["date"]
+        user.location_change_moving_costs = user_data["location_change"]["moving_cost"]
+        user.location_col_adjustment = user_data["location_change"]["col_adjustment"]
+        user.location_change_state = user_data["location_change"]["state"]
+        
+    simulate_years = user_data.get("simulate_years", 10)
+    num_simulations = user_data.get("num_simulations", 10)
+
+    ts_df, average_retirement_age, stdev_retirement_age, all_time_series, retirement_ages = monte_carlo_simulation(years=simulate_years, simulations=num_simulations, user=user)
+
+    return ts_df, average_retirement_age, stdev_retirement_age, all_time_series, retirement_ages, user

@@ -55,21 +55,38 @@ def generate_repeating_field_group(keys, group_id, default_values=None):
 
         for key, value in keys.items():
             field_type = value["type"]
-            default_value = defaults[key] if defaults and key in defaults else value["default"]
+            default_value = defaults.get(key, value["default"]) if defaults else value["default"]
 
-            if field_type == int:
-                field_group[key] = row_columns[0].number_input(key, value=int(default_value), step=1, key=f"{key}_{row_id}_{group_id}")
+            if key == "purchase_type":
+                field_group[key] = row_columns[0].selectbox(key, options=["cash", "finance", "lease"], key=f"{key}_{row_id}_{group_id}")
+            elif field_type == int:
+                try:
+                    int_value = int(default_value) if default_value is not None else 0
+                except ValueError:
+                    int_value = 0
+                field_group[key] = row_columns[0].number_input(key, value=int_value, step=1, key=f"{key}_{row_id}_{group_id}")
             elif field_type == float:
-                field_group[key] = row_columns[0].number_input(key, value=float(default_value), format="%.2f", key=f"{key}_{row_id}_{group_id}")
+                try:
+                    float_value = float(default_value) if default_value is not None else 0.0
+                except ValueError:
+                    float_value = 0.0
+                field_group[key] = row_columns[0].number_input(key, value=float_value, format="%.2f", key=f"{key}_{row_id}_{group_id}")
             elif field_type == str:
-                field_group[key] = row_columns[0].text_input(key, value=str(default_value), key=f"{key}_{row_id}_{group_id}")
-            elif field_type == "date":
-                field_group[key] = row_columns[0].date_input(key, value=datetime.date.fromisoformat(default_value) if isinstance(default_value, str) else default_value, key=f"{key}_{row_id}_{group_id}")
-            elif field_type == "paragraph":
-                field_group[key] = row_columns[0].text_area(key, value=str(default_value), key=f"{key}_{row_id}_{group_id}")
+                field_group[key] = row_columns[0].text_input(key, value=str(default_value) if default_value is not None else "", key=f"{key}_{row_id}_{group_id}")
             elif field_type == "choice":
                 choices = value["choices"]
                 field_group[key] = row_columns[0].selectbox(key, options=choices, index=choices.index(default_value), key=f"{key}_{row_id}_{group_id}")
+            elif field_type == "date":
+                if isinstance(default_value, str):
+                    try:
+                        date_value = datetime.date.fromisoformat(default_value)
+                    except ValueError:
+                        date_value = datetime.date.today()
+                elif isinstance(default_value, datetime.date):
+                    date_value = default_value
+                else:
+                    date_value = datetime.date.today()
+                field_group[key] = row_columns[0].date_input(key, value=date_value, key=f"{key}_{row_id}_{group_id}")
             else:
                 raise ValueError(f"Invalid field type: {field_type}")
 
@@ -133,7 +150,7 @@ def create_user(user_data=None):
         average_life_event_frequency = user_data.get("average_life_event_frequency", 1)
         budget_items_data = user_data.get("budget_items", [])
         investment_vehicles_data = user_data.get("investment_vehicles", [])
-        major_expenses_data = user_data.get("major_expenses", [])
+        major_purchases_data = user_data.get("major_purchases", [])
         home_purchase_data = user_data.get("home_purchase", {})
         location_change_data = user_data.get("location_change", {})
         post_retirement_expenses = user_data.get("post_retirement_expenses", 0.0)
@@ -160,7 +177,7 @@ def create_user(user_data=None):
         average_life_event_frequency = 1
         budget_items_data = []
         investment_vehicles_data = []
-        major_expenses_data = []
+        major_purchases_data = []
         home_purchase_data = {}
         location_change_data = {}
         post_retirement_expenses = 0.0
@@ -204,13 +221,19 @@ def create_user(user_data=None):
         "name": {"type": str, "default": "S&P 500"},
         "annual_returns": {"type": float, "default": 0.1026},
         "standard_deviation": {"type": float, "default": 0.1532},
-        "ratio": {"type": float, "default": 1.0}
+        "ratio": {"type": float, "default": 1.0},
+        "distribution_type": {"type": "choice", "default": "normal-monthly", "choices": ["normal-monthly", "normal-yearly-gradient", "historic-stocks", "historic-real-estate"]}
     }
 
-    major_expense_keys = {
+    major_purchase_keys = {
         "name": {"type": str, "default": ""},
-        "cost": {"type": int, "default": 0.0},
-        "date": {"type": "date", "default": datetime.date.today()}
+        "cost": {"type": float, "default": 0.0},
+        "date": {"type": "date", "default": datetime.date.today()},
+        "purchase_type": {"type": "choice", "default": "cash", "choices": ["cash", "finance", "lease"]},
+        "term": {"type": int, "default": 0},
+        "interest_rate": {"type": float, "default": 0.0},
+        "down_payment": {"type": float, "default": 0.0},
+        "monthly_payment": {"type": float, "default": 0.0}
     }
 
     st.subheader("Budget Items")
@@ -241,7 +264,8 @@ By strategically using these investment vehicles, individuals can accelerate the
 
     st.subheader("Major Expenses")
     tooltip("Major expenses are one-time or infrequent expenses that you anticipate in the future. These could include things like a wedding, a new car, or a vacation. These expenses will be deducted from your savings when they occur.")
-    major_expenses = generate_repeating_field_group(major_expense_keys, "major_expense", major_expenses_data)
+    tooltip("Financing only uses the down payment and cost fields. The monthly payment is calculated for you. The lease option only uses down payment and monthly payment fields. Cash purchases only use the cost field.")
+    major_purchases = generate_repeating_field_group(major_purchase_keys, "major_purchase", major_purchases_data)
 
     
     home_purchase = st.checkbox("Plan to Purchase a Home", value=False)
@@ -313,8 +337,27 @@ By strategically using these investment vehicles, individuals can accelerate the
             "average_life_event_stdev": average_life_event_stdev,
             "average_life_event_frequency": average_life_event_frequency,
             "budget_items": [{"name": item["name"], "value": item["value"], "frequency": item["frequency"]} for item in budget_items],
-            "investment_vehicles": [{"name": vehicle["name"], "annual_returns": vehicle["annual_returns"], "standard_deviation": vehicle["standard_deviation"], "ratio": vehicle["ratio"]} for vehicle in investment_vehicles],
-            "major_expenses": [{"name": expense["name"], "cost": expense["cost"], "date": str(expense["date"])} for expense in major_expenses],
+            "investment_vehicles": [
+                {
+                    "name": vehicle["name"],
+                    "annual_returns": vehicle["annual_returns"],
+                    "standard_deviation": vehicle["standard_deviation"],
+                    "ratio": vehicle["ratio"],
+                    "distribution_type": vehicle["distribution_type"]
+                } for vehicle in investment_vehicles
+            ],
+            "major_purchases": [
+                {
+                    "name": purchase["name"],
+                    "cost": purchase["cost"],
+                    "date": str(purchase["date"]),
+                    "purchase_type": purchase["purchase_type"],
+                    "term": purchase["term"] if purchase["purchase_type"] in ["finance", "lease"] else None,
+                    "interest_rate": purchase["interest_rate"] if purchase["purchase_type"] == "finance" else None,
+                    "down_payment": purchase["down_payment"] if purchase["purchase_type"] in ["finance", "lease"] else None,
+                    "monthly_payment": purchase["monthly_payment"] if purchase["purchase_type"] in ["finance", "lease"] else None
+                } for purchase in major_purchases
+            ],
             "home_purchase": {
                 "date": str(home_purchase_date) if home_purchase else None,
                 "price": home_purchase_price if home_purchase else None,

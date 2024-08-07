@@ -5,6 +5,7 @@ import datetime
 import json
 import pandas as pd
 import os
+import plotly.graph_objects as go
 
 # DynamoDB configuration
 try:
@@ -58,21 +59,38 @@ def generate_repeating_field_group(keys, group_id, default_values=None):
 
         for key, value in keys.items():
             field_type = value["type"]
-            default_value = defaults[key] if defaults and key in defaults else value["default"]
+            default_value = defaults.get(key, value["default"]) if defaults else value["default"]
 
-            if field_type == int:
-                field_group[key] = row_columns[0].number_input(key, value=int(default_value), step=1, key=f"{key}_{row_id}_{group_id}")
+            if key == "purchase_type":
+                field_group[key] = row_columns[0].selectbox(key, options=["cash", "finance", "lease"], key=f"{key}_{row_id}_{group_id}")
+            elif field_type == int:
+                try:
+                    int_value = int(default_value) if default_value is not None else 0
+                except ValueError:
+                    int_value = 0
+                field_group[key] = row_columns[0].number_input(key, value=int_value, step=1, key=f"{key}_{row_id}_{group_id}")
             elif field_type == float:
-                field_group[key] = row_columns[0].number_input(key, value=float(default_value), format="%.2f", key=f"{key}_{row_id}_{group_id}")
+                try:
+                    float_value = float(default_value) if default_value is not None else 0.0
+                except ValueError:
+                    float_value = 0.0
+                field_group[key] = row_columns[0].number_input(key, value=float_value, format="%.2f", key=f"{key}_{row_id}_{group_id}")
             elif field_type == str:
-                field_group[key] = row_columns[0].text_input(key, value=str(default_value), key=f"{key}_{row_id}_{group_id}")
-            elif field_type == "date":
-                field_group[key] = row_columns[0].date_input(key, value=datetime.date.fromisoformat(default_value) if isinstance(default_value, str) else default_value, key=f"{key}_{row_id}_{group_id}")
-            elif field_type == "paragraph":
-                field_group[key] = row_columns[0].text_area(key, value=str(default_value), key=f"{key}_{row_id}_{group_id}")
+                field_group[key] = row_columns[0].text_input(key, value=str(default_value) if default_value is not None else "", key=f"{key}_{row_id}_{group_id}")
             elif field_type == "choice":
                 choices = value["choices"]
                 field_group[key] = row_columns[0].selectbox(key, options=choices, index=choices.index(default_value), key=f"{key}_{row_id}_{group_id}")
+            elif field_type == "date":
+                if isinstance(default_value, str):
+                    try:
+                        date_value = datetime.date.fromisoformat(default_value)
+                    except ValueError:
+                        date_value = datetime.date.today()
+                elif isinstance(default_value, datetime.date):
+                    date_value = default_value
+                else:
+                    date_value = datetime.date.today()
+                field_group[key] = row_columns[0].date_input(key, value=date_value, key=f"{key}_{row_id}_{group_id}")
             else:
                 raise ValueError(f"Invalid field type: {field_type}")
 
@@ -119,15 +137,26 @@ def dict_to_user(user_data):
         }
         user.add_budget_item(formatted_budget_item)
     
-    ratio_sum = sum([investment_vehicle["ratio"] for investment_vehicle in user_data.get("investment_vehicles", [])])
-    if ratio_sum != 1:
-        st.error("The ratios of investment vehicles must add up to 1.")
-    
     for investment_vehicle in user_data.get("investment_vehicles", []):
-        user.add_investment_vehicle(investment_vehicle["name"], investment_vehicle["annual_returns"], investment_vehicle["standard_deviation"], investment_vehicle["ratio"])
+        user.add_investment_vehicle(
+            investment_vehicle["name"],
+            investment_vehicle["annual_returns"],
+            investment_vehicle["standard_deviation"],
+            investment_vehicle["ratio"],
+            investment_vehicle.get("distribution_type", "normal-monthly")  # Default to "normal-monthly" if not specified
+        )
     
-    for major_expense in user_data.get("major_expenses", []):
-        user.add_major_expense(major_expense["name"], major_expense["cost"], major_expense["date"])
+    for major_purchase in user_data.get("major_purchases", []):
+        user.add_major_purchase(
+            major_purchase["name"],
+            major_purchase["cost"],
+            major_purchase["date"],
+            major_purchase["purchase_type"],
+            major_purchase.get("term"),
+            major_purchase.get("interest_rate"),
+            major_purchase.get("down_payment"),
+            major_purchase.get("monthly_payment")
+        )
     
     if user_data.get("home_purchase", {}).get("price", 0) != 0:
         user.home_purchase_date = user_data["home_purchase"]["date"]
@@ -184,13 +213,19 @@ if __name__ == "__main__":
                 "name": {"type": str, "default": "S&P 500"},
                 "annual_returns": {"type": float, "default": 0.1026},
                 "standard_deviation": {"type": float, "default": 0.1532},
-                "ratio": {"type": float, "default": 1.0}
+                "ratio": {"type": float, "default": 1.0},
+                "distribution_type": {"type": "choice", "default": "normal-monthly", "choices": ["normal-monthly", "normal-yearly-gradient", "historic-stocks", "historic-real-estate"]}
             }
 
-            major_expense_keys = {
+            major_purchase_keys = {
                 "name": {"type": str, "default": ""},
-                "cost": {"type": int, "default": 0.0},
-                "date": {"type": "date", "default": datetime.date.today()}
+                "cost": {"type": float, "default": 0.0},
+                "date": {"type": "date", "default": datetime.date.today()},
+                "purchase_type": {"type": str, "default": "cash"},
+                "term": {"type": int, "default": 0},
+                "interest_rate": {"type": float, "default": 0.0},
+                "down_payment": {"type": float, "default": 0.0},
+                "monthly_payment": {"type": float, "default": 0.0}
             }
 
             st.subheader("Budget Items")
@@ -200,7 +235,7 @@ if __name__ == "__main__":
             investment_vehicles = generate_repeating_field_group(investment_vehicle_keys, "investment", user_data.get("investment_vehicles", []))
 
             st.subheader("Major Expenses")
-            major_expenses = generate_repeating_field_group(major_expense_keys, "major_expense", user_data.get("major_expenses", []))
+            major_purchases = generate_repeating_field_group(major_purchase_keys, "major_purchase", user_data.get("major_purchases", []))
 
             home_purchase_enabled = "home_purchase_enabled" in st.session_state or user_data.get("home_purchase", {}).get("price", 0) != 0
             home_purchase = st.checkbox("Plan to Purchase a Home", value=home_purchase_enabled, key="home_purchase_enabled")
@@ -265,8 +300,27 @@ if __name__ == "__main__":
                     "post_retirement_expenses": post_retirement_expenses,
                     "average_post_retirement_income": average_post_retirement_income,
                     "budget_items": [{"name": item["name"], "value": item["value"], "frequency": item["frequency"]} for item in budget_items],
-                    "investment_vehicles": [{"name": vehicle["name"], "annual_returns": vehicle["annual_returns"], "standard_deviation": vehicle["standard_deviation"], "ratio": vehicle["ratio"]} for vehicle in investment_vehicles],
-                    "major_expenses": [{"name": expense["name"], "cost": expense["cost"], "date": str(expense["date"])} for expense in major_expenses],
+                    "investment_vehicles": [
+                        {
+                            "name": vehicle["name"],
+                            "annual_returns": vehicle["annual_returns"],
+                            "standard_deviation": vehicle["standard_deviation"],
+                            "ratio": vehicle["ratio"],
+                            "distribution_type": vehicle["distribution_type"]
+                        } for vehicle in investment_vehicles
+                    ],                   
+                    "major_purchases": [
+                        {
+                            "name": purchase["name"],
+                            "cost": purchase["cost"],
+                            "date": str(purchase["date"]),
+                            "purchase_type": purchase["purchase_type"],
+                            "term": purchase["term"] if purchase["purchase_type"] in ["finance", "lease"] else None,
+                            "interest_rate": purchase["interest_rate"] if purchase["purchase_type"] == "finance" else None,
+                            "down_payment": purchase["down_payment"] if purchase["purchase_type"] in ["finance", "lease"] else None,
+                            "monthly_payment": purchase["monthly_payment"] if purchase["purchase_type"] in ["finance", "lease"] else None
+                        } for purchase in major_purchases
+                    ],
                     "home_purchase": {
                         "date": str(home_purchase_date) if home_purchase else None,
                         "price": home_purchase_price if home_purchase else None,
@@ -287,23 +341,11 @@ if __name__ == "__main__":
                     "income_growth": user_data.get("income_growth", 0.03)
                 }
 
-                # Convert dictionaries to User objects
-                original_user = dict_to_user(original_user_data)
-                new_user = dict_to_user(new_user_data)
-
                 # Run original simulation
-                ts_df_original, average_retirement_age_original, stdev_retirement_age_original = monte_carlo_simulation(
-                    years=user_data.get("simulate_years", 10),
-                    simulations=user_data.get("num_simulations", 10),
-                    user=original_user
-                )
+                ts_df_original, average_retirement_age_original, stdev_retirement_age_original, all_time_series_original, retirement_ages_original, original_user = run_simulation_local(original_user_data)
 
                 # Run new simulation
-                ts_df_new, average_retirement_age_new, stdev_retirement_age_new = monte_carlo_simulation(
-                    years=new_user_data["simulate_years"],
-                    simulations=new_user_data["num_simulations"],
-                    user=new_user
-                )
+                ts_df_new, average_retirement_age_new, stdev_retirement_age_new, all_time_series_new, retirement_ages_new, new_user = run_simulation_local(new_user_data)
 
                 # Calculate change in retirement age
                 retirement_age_change_years = average_retirement_age_new - average_retirement_age_original
@@ -312,32 +354,40 @@ if __name__ == "__main__":
 
                 st.title(f"In this new scenario, you would be able to retire {int(abs(retirement_age_change_years))} years, {int(abs(retirement_age_change_months))} months, {int(abs(retirement_age_change_days))} days {'earlier' if retirement_age_change_years < 0 else 'later'}.")
 
-
-                # Display comparison charts
+                # Display comparison charts using Plotly
                 st.subheader("Comparison of Projected Net Worth and Investments")
-                df_net_worth_comparison = pd.DataFrame({
-                    "Original Net Worth": ts_df_original["net_worth"],
-                    "New Net Worth": ts_df_new["net_worth"],
-                    "Original Investments": ts_df_original["investments"],
-                    "New Investments": ts_df_new["investments"],
-                    "month": ts_df_original["month"]
-                }).set_index("month")
-                st.line_chart(df_net_worth_comparison)
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=ts_df_original["month"], y=ts_df_original["net_worth"], mode='lines', name='Original Net Worth'))
+                fig.add_trace(go.Scatter(x=ts_df_new["month"], y=ts_df_new["net_worth"], mode='lines', name='New Net Worth'))
+                fig.add_trace(go.Scatter(x=ts_df_original["month"], y=ts_df_original["investments"], mode='lines', name='Original Investments'))
+                fig.add_trace(go.Scatter(x=ts_df_new["month"], y=ts_df_new["investments"], mode='lines', name='New Investments'))
+                fig.update_layout(title='Comparison of Net Worth and Investments', xaxis_title='Month', yaxis_title='Amount ($)')
+                st.plotly_chart(fig)
 
-                if home_purchase:
+                if original_user.owns_home or new_user.owns_home:
                     st.subheader("Comparison of Home Equity")
-                    df_home_equity_comparison = pd.DataFrame({
-                        "Original Home Equity": ts_df_original["home_equity_value_with_growth"],
-                        "New Home Equity": ts_df_new["home_equity_value_with_growth"],
-                        "month": ts_df_original["month"]
-                    }).set_index("month")
-                    st.line_chart(df_home_equity_comparison)
+                    fig = go.Figure()
+                    if original_user.owns_home:
+                        fig.add_trace(go.Scatter(x=ts_df_original["month"], y=ts_df_original["home_equity_value_with_growth"], mode='lines', name='Original Home Equity'))
+                    if new_user.owns_home:
+                        fig.add_trace(go.Scatter(x=ts_df_new["month"], y=ts_df_new["home_equity_value_with_growth"], mode='lines', name='New Home Equity'))
+                    fig.update_layout(title='Comparison of Home Equity', xaxis_title='Month', yaxis_title='Home Equity ($)')
+                    st.plotly_chart(fig)
 
-                st.subheader("Raw Data for Original Scenario")
-                st.write(ts_df_original)
+                # Display retirement age distribution
+                st.subheader("Retirement Age Distribution")
+                fig = go.Figure()
+                fig.add_trace(go.Histogram(x=retirement_ages_original, name='Original Scenario', opacity=0.7))
+                fig.add_trace(go.Histogram(x=retirement_ages_new, name='New Scenario', opacity=0.7))
+                fig.update_layout(title='Retirement Age Distribution', xaxis_title='Retirement Age', yaxis_title='Count', barmode='overlay')
+                st.plotly_chart(fig)
 
-                st.subheader("Raw Data for New Scenario")
-                st.write(ts_df_new)
+                # Display raw data in expandable sections
+                with st.expander("Raw Data for Original Scenario"):
+                    st.write(ts_df_original)
+
+                with st.expander("Raw Data for New Scenario"):
+                    st.write(ts_df_new)
 
         else:
             st.error("Failed to load user profile.")
