@@ -37,81 +37,11 @@ def load_user_profile(user_id):
         return json.loads(profile_json)
     return None
 
-def run_simulation_local(user_data):
-    user = User()
-    user.age = user_data.get("age", 22)
-    user.income = user_data.get("income", 95000.0)
-    user.risk_tolerance = user_data.get("risk_tolerance", 0.5)
-    user.expenditure_growth_beyond_inflation = user_data.get("expenditure_growth_beyond_inflation", 0.03)
-    user.current_savings = user_data.get("current_savings", 25000.0)
-    user.max_401k_contribution = user_data.get("max_401k_contribution", True)
-    user.max_ira_contribution = user_data.get("max_ira_contribution", True)
-    user.max_hsa_contribution = user_data.get("max_hsa_contribution", False)
-    user.other_tax_sheltered_income = user_data.get("other_tax_sheltered_income", 0.0)
-    user.married = user_data.get("married", True)
-    user.emergency_fund_target = user_data.get("emergency_fund_target", 10000.0)
-    user.inflation = user_data.get("inflation", 0.03)
-    user.average_life_event_cost = user_data.get("average_life_event_cost", 1000.0)
-    user.average_life_event_stdev = user_data.get("average_life_event_stdev", 500.0)
-    user.average_life_event_frequency = user_data.get("average_life_event_frequency", 1)
-    user.post_retirement_expenses = user_data.get("post_retirement_expenses", 0.0)
-    user.average_post_retirement_income = user_data.get("average_post_retirement_income", 0.0)
-    user.income_growth = user_data.get("income_growth", 0.03)
+def display_results(user_data):
+    ts_df, average_retirement_age, stdev_retirement_age, all_time_series, retirement_ages, user = run_simulation_local(user_data)
 
-    for budget_item in user_data.get("budget_items", []):
-        formatted_budget_item = {
-            "name": budget_item["name"],
-            "value": budget_item["value"],
-            "frequency": budget_item["frequency"]
-        }
-        user.add_budget_item(formatted_budget_item)
-    
-    ratio_sum = sum([investment_vehicle["ratio"] for investment_vehicle in user_data.get("investment_vehicles", [])])
-    if ratio_sum != 1:
-        st.error("The ratios of investment vehicles must add up to 1.")
-    
-    for investment_vehicle in user_data.get("investment_vehicles", []):
-        user.add_investment_vehicle(
-            investment_vehicle["name"],
-            investment_vehicle["annual_returns"],
-            investment_vehicle["standard_deviation"],
-            investment_vehicle["ratio"],
-            investment_vehicle.get("distribution_type", "normal-monthly")  # Default to "normal-monthly" if not specified
-        )
-    
-    for major_purchase in user_data.get("major_purchases", []):
-        user.add_major_purchase(
-            major_purchase["name"],
-            major_purchase["cost"],
-            major_purchase["date"],
-            major_purchase["purchase_type"],
-            major_purchase.get("term"),
-            major_purchase.get("interest_rate"),
-            major_purchase.get("down_payment"),
-            major_purchase.get("monthly_payment")
-        )
-
-    if user_data.get("home_purchase", {}).get("price", 0) != 0:
-        user.home_purchase_date = user_data["home_purchase"]["date"]
-        user.home_purchase_price = user_data["home_purchase"]["price"]
-        user.down_payment = user_data["home_purchase"]["down_payment"]
-        user.mortgage_rate = user_data["home_purchase"]["mortgage_rate"]
-        user.mortgage_term_years = user_data["home_purchase"]["mortgage_term_years"]
-        user.pay_off_mortgage_before_retirement = user_data["home_purchase"]["pay_off_before_retirement"]
-        user.property_tax = user_data["home_purchase"]["property_tax"]
-    
-    if user_data.get("location_change", {}).get("date", None):
-        user.location_change = True
-        user.location_change_date = user_data["location_change"]["date"]
-        user.location_change_moving_costs = user_data["location_change"]["moving_cost"]
-        user.location_col_adjustment = user_data["location_change"]["col_adjustment"]
-        user.location_change_state = user_data["location_change"]["state"]
-        
-    st.success("Running Simulation...")
-    simulate_years = user_data.get("simulate_years", 10)
-    num_simulations = user_data.get("num_simulations", 10)
-
-    ts_df, average_retirement_age, stdev_retirement_age, all_time_series, retirement_ages = monte_carlo_simulation(years=simulate_years, simulations=num_simulations, user=user)
+    num_simulations = len(all_time_series)
+    simulate_years = user_data['simulate_years']
 
     if average_retirement_age is None or stdev_retirement_age is None:
         st.error("The simulation couldn't determine valid retirement ages. Please adjust your parameters and try again.")
@@ -119,7 +49,7 @@ def run_simulation_local(user_data):
 
     bottom_range = round(average_retirement_age - stdev_retirement_age, 1)
     top_range = round(average_retirement_age + stdev_retirement_age, 1)
-    st.title(f"Your Estimated Retirement Age is between :orange[{round(bottom_range)}] and :orange[{round(top_range)}] years old")
+    st.title(f"Your Estimated Age To Reach Your FIRE Number of {int(round((user_data["post_retirement_expenses"] - user_data["average_post_retirement_income"])/user.retirement_income_ratio, -4))} is between :orange[{round(bottom_range)}] and :orange[{round(top_range)}] years old")
     st.title(f"We ran {num_simulations} simulations of {simulate_years} years. Here are the results:")
 
     # Retirement age distribution
@@ -176,12 +106,55 @@ def run_simulation_local(user_data):
     st.write(f"Best case final net worth: ${best_case['net_worth'].iloc[-1]:,.2f}")
     st.write(f"Worst case final net worth: ${worst_case['net_worth'].iloc[-1]:,.2f}")
 
-    # Display original charts
-    st.subheader(f"Average Projected Net Worth and Investments Over The Next {simulate_years} Years:")
-    df_net_worth = ts_df[["net_worth", "investments", "month"]]
-    df_net_worth = df_net_worth.set_index("month")
-    st.line_chart(df_net_worth)
+    def create_stacked_net_worth_chart(ts_df, user):
+        # Prepare data for stacking
+        data = {
+            'Year': ts_df['month'] // 12,
+            'Home Equity': ts_df['home_equity'],
+            'Emergency Fund': ts_df['emergency_fund'],
+        }
+        
+        # Add individual investment vehicles
+        for vehicle in user.investment_vehicles:
+            data[f'Investment: {vehicle.name}'] = ts_df['investments'] * vehicle.ratio
+        
+        # Add major purchases
+        for purchase in user.major_purchases:
+            if purchase.consider_in_net_worth:
+                data[f'Major Purchase: {purchase.item_name}'] = ts_df[f'major_purchase_{purchase.item_name}_value']
+        
+        # Create DataFrame
+        df = pd.DataFrame(data)
+        df = df.groupby('Year').last().reset_index()  # Get last value for each year
+        
+        # Create stacked bar chart
+        fig = go.Figure()
+        
+        for column in df.columns:
+            if column != 'Year':
+                fig.add_trace(go.Bar(
+                    x=df['Year'],
+                    y=df[column],
+                    name=column,
+                    hoverinfo='name+y'
+                ))
+        
+        fig.update_layout(
+            title='Net Worth Composition Over Time',
+            xaxis_title='Year',
+            yaxis_title='Amount ($)',
+            barmode='stack',
+            legend_title='Components',
+            hovermode='x unified'
+        )
+        
+        return fig
 
+    # In the main Streamlit app:
+    st.subheader("Net Worth Composition Over Time")
+    net_worth_chart = create_stacked_net_worth_chart(ts_df, user)
+    st.plotly_chart(net_worth_chart)
+    
     if user.home_purchase_date is not None:
         st.subheader("Your Average Home Equity")
         df_home_equity = ts_df[["home_equity_value_with_growth", "month"]]
@@ -209,7 +182,7 @@ if __name__ == "__main__":
         user_data = load_user_profile(user_id)
         if user_data:
             if st.button("Run Updated Simulation"):
-                run_simulation_local(user_data)
+                display_results(user_data)
         else:
             st.error("Failed to load user profile.")
     else:

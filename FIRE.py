@@ -39,7 +39,7 @@ def get_state_tax_data(state_name):
 
 class Home:
     def __init__(self, purchase_date, purchase_price, down_payment, mortgage_rate, mortgage_term_years,
-                 home_equity=0, home_value=0, average_annual_home_appreciation=0.03, hoa=0, property_tax_rate=0.02, home_buying_costs=0.06):
+                 home_equity=0, home_value=0, hoa=0, property_tax_rate=0.02, home_buying_costs=0.06):
         self.purchase_date = ensure_date(purchase_date)
         self.purchase_price = purchase_price
         self.down_payment = down_payment
@@ -50,13 +50,17 @@ class Home:
         self.initial_loan_balance = self.loan_balance
         self.interest_paid = 0
         self.home_value = self.purchase_price if home_value == 0 else home_value
-        self.average_annual_home_appreciation = average_annual_home_appreciation
-        self.property_tax_rate = 0.02 if property_tax_rate == 0 else property_tax_rate
-        self.hoa = 100 if hoa == 0 else hoa
-        self.home_buying_costs = 0.06 if home_buying_costs == 0 else home_buying_costs
+        self.property_tax_rate = property_tax_rate
+        self.hoa = hoa
+        self.home_buying_costs = home_buying_costs
         self.monthly_PI_payment = self.calculate_monthly_PI_payment()
         self.monthly_payment = self.calculate_monthly_payment()
         self.paid_off = False
+        
+        # Load historical real estate data
+        self.historic_data = pd.read_csv('realestate.csv')
+        self.start_index = random.randint(0, len(self.historic_data) - 1)
+        self.current_index = self.start_index
 
     def calculate_monthly_PI_payment(self):
         r = self.mortgage_rate / 12
@@ -71,36 +75,31 @@ class Home:
         taxes = self.home_value * self.property_tax_rate / 12
         return PI_payment + insurance + taxes + self.hoa
 
-    def calculate_home_equity(self, date):
+    def calculate_home_equity(self):
         return self.home_value - self.loan_balance
+
+    def get_monthly_appreciation(self):
+        return self.historic_data.iloc[self.current_index]['Return']
 
     def make_payment(self, date):
         date = ensure_date(date)
         if self.paid_off:
             return 0
         
-        # Calculate the number of months since purchase
-        months_since_purchase = (date - self.purchase_date).days / 30.5
-        
-        # Calculate the remaining loan balance and interest paid
+        # Calculate interest and principal
         r = self.mortgage_rate / 12
-        n = self.mortgage_term_years * 12
-        remaining_payments = n - months_since_purchase
-
-        # Calculate interest and principal using amortization formula
         interest = self.loan_balance * r
         principal = self.monthly_PI_payment - interest
         
         self.loan_balance -= principal
         self.interest_paid += interest
 
-        # Update home value based on appreciation rate once per year
-        if months_since_purchase % 12 == 0:
-            self.home_value *= (1 + self.average_annual_home_appreciation)
-            self.home_value = min(self.home_value, self.purchase_price * 2)  # Cap appreciation at 2x purchase price
+        # Update home value based on historical appreciation data
+        monthly_appreciation = self.get_monthly_appreciation()
+        self.home_value *= (1 + monthly_appreciation)
 
         # Update home equity
-        self.home_equity = self.calculate_home_equity(date)
+        self.home_equity = self.calculate_home_equity()
 
         # If loan is paid off, set paid_off to True
         if self.loan_balance <= 0:
@@ -108,8 +107,13 @@ class Home:
             self.loan_balance = 0
             self.home_equity = self.home_value
         
+        # Move to the next month in the historical data
+        self.current_index = (self.current_index + 1) % len(self.historic_data)
+        
         return self.monthly_payment
 
+    def __str__(self):
+        return f"Home Purchase Price: {self.purchase_price}, Down Payment: {self.down_payment}, Mortgage Rate: {self.mortgage_rate}, Mortgage Term: {self.mortgage_term_years}, Home Equity: {self.home_equity}, Home Value: {self.home_value}, Monthly Payment: {self.monthly_payment}, Paid Off: {self.paid_off}"
 class InvestmentVehicle:
     def __init__(self, name, annual_returns, standard_deviation, ratio, distribution_type):
         self.name = name
@@ -145,28 +149,70 @@ class InvestmentVehicle:
         if self.current_month > 12:
             self.current_month = 1
             self.current_year += 1
+    
+    def __str__(self):
+        return f"{self.name}: {self.annual_returns}, {self.standard_deviation}, {self.ratio}, {self.distribution_type}"
+    
 
 class MajorPurchase:
-    def __init__(self, name, cost, date, purchase_type, term=None, interest_rate=None, down_payment=None, monthly_payment=None):
-        self.name = name
-        self.cost = cost
-        self.date = ensure_date(date)
-        self.purchase_type = purchase_type  # 'cash', 'finance', or 'lease'
-        self.term = term
-        self.interest_rate = interest_rate
+    def __init__(self, item_name, purchase_date, total_cost, purchase_type, down_payment=0, loan_amount=0, 
+                 interest_rate=0, loan_term_months=0, lease_term_months=0, monthly_lease_payment=0, 
+                 buy_residual=False, residual_value=0, consider_in_net_worth=False, asset_value_change=0):
+        self.item_name = item_name
+        self.purchase_date = purchase_date
+        self.total_cost = total_cost
+        self.purchase_type = purchase_type
         self.down_payment = down_payment
-        self.monthly_payment = monthly_payment
-        self.remaining_balance = cost if purchase_type == 'finance' else 0
+        self.loan_amount = loan_amount
+        self.interest_rate = interest_rate
+        self.loan_term_months = loan_term_months
+        self.lease_term_months = lease_term_months
+        self.monthly_lease_payment = monthly_lease_payment
+        self.buy_residual = buy_residual
+        self.residual_value = residual_value
+        self.consider_in_net_worth = consider_in_net_worth
+        self.asset_value_change = asset_value_change / 100  # Convert percentage to decimal
+        self.current_value = total_cost
+        self.remaining_balance = loan_amount if purchase_type == 'finance' else 0
+        self.months_elapsed = 0
 
-    def make_payment(self):
+    def update_value(self):
+        if self.consider_in_net_worth:
+            self.current_value *= (1 + self.asset_value_change / 12)  # Monthly appreciation/depreciation
+
+    def make_payment(self, current_date):
+        if ensure_date(current_date) < ensure_date(self.purchase_date):
+            return 0  # No payment if current date is before purchase date
+
+        self.months_elapsed = (ensure_date(current_date) - ensure_date(self.purchase_date)).days // 30  # Approximate number of months
+
         if self.purchase_type == 'finance':
-            interest = self.remaining_balance * (self.interest_rate / 12)
-            principal = self.monthly_payment - interest
-            self.remaining_balance -= principal
-            return self.monthly_payment
+            if self.months_elapsed <= self.loan_term_months:
+                monthly_rate = self.interest_rate / 12
+                payment = (self.loan_amount * monthly_rate * (1 + monthly_rate) ** self.loan_term_months) / ((1 + monthly_rate) ** self.loan_term_months - 1)
+                interest = self.remaining_balance * monthly_rate
+                principal = payment - interest
+                self.remaining_balance -= principal
+                return payment
+            return 0
         elif self.purchase_type == 'lease':
-            return self.monthly_payment
+            if self.months_elapsed <= self.lease_term_months:
+                return self.monthly_lease_payment
+            elif self.buy_residual and self.months_elapsed == self.lease_term_months + 1:
+                return self.residual_value
+            return 0
         return 0
+
+    def get_net_worth_impact(self):
+        if self.consider_in_net_worth:
+            if self.purchase_type in ['cash', 'finance']:
+                return self.current_value - self.remaining_balance
+            elif self.purchase_type == 'lease' and self.buy_residual and self.months_elapsed > self.lease_term_months:
+                return self.current_value
+        return 0
+
+    def __str__(self):
+        return f"{self.item_name}: {self.total_cost}, {self.purchase_type}, {self.down_payment}, {self.loan_amount}, {self.interest_rate}, {self.loan_term_months}, {self.lease_term_months}, {self.monthly_lease_payment}, {self.buy_residual}, {self.residual_value}, {self.consider_in_net_worth}, {self.asset_value_change}"
 
 
 class User:
@@ -224,7 +270,7 @@ class User:
         self.location_change_state = "None"
         self.state = "None"
         self.state_tax_data = get_state_tax_data(self.state)
-
+        self.total_growth = 1 + self.inflation + self.expenditure_growth_beyond_inflation
 
     def get_retirement_income_ratio(self):
         if self.risk_tolerance < .1:
@@ -335,8 +381,12 @@ class User:
     def add_investment_vehicle(self, name, annual_returns, standard_deviation, ratio, distribution_type):
         self.investment_vehicles.append(InvestmentVehicle(name, annual_returns, standard_deviation, ratio, distribution_type))
     
-    def add_major_purchase(self, name, cost, date, purchase_type, term=None, interest_rate=None, down_payment=None, monthly_payment=None):
-        purchase = MajorPurchase(name, cost, date, purchase_type, term, interest_rate, down_payment, monthly_payment)
+    def add_major_purchase(self, item_name, purchase_date, total_cost, purchase_type, down_payment=0, loan_amount=0, 
+                           interest_rate=0, loan_term_months=0, lease_term_months=0, monthly_lease_payment=0, 
+                           buy_residual=False, residual_value=0, consider_in_net_worth=False, asset_value_change=0):
+        purchase = MajorPurchase(item_name, purchase_date, total_cost, purchase_type, down_payment, loan_amount, 
+                                 interest_rate, loan_term_months, lease_term_months, monthly_lease_payment, 
+                                 buy_residual, residual_value, consider_in_net_worth, asset_value_change)
         self.major_purchases.append(purchase)
     
     def set_home_purchase_date(self, date):
@@ -360,176 +410,152 @@ class User:
     def get_random_year_all_investment_returns(self):
         return sum([self.get_random_year_investment_return(investment_vehicle)*investment_vehicle.ratio for investment_vehicle in self.investment_vehicles])
     
-    def add_budget_item(self, item):
-        self.budget[item["name"]] = {"value":item["value"], "frequency":item["frequency"]}
-    
-    def get_annual_expenses(self):
-        expenses = []
-        for value in self.budget.values():
-            if isinstance(value, dict) and value.get("frequency") == "annual":
-                expenses.append(value.get("value", 0))
-        return sum(expenses)
 
-    def get_monthly_expenses(self):
-        expenses = []
-        for value in self.budget.values():
-            if isinstance(value, dict) and value.get("frequency") == "monthly":
-                expenses.append(value.get("value", 0))
-            if isinstance(value, dict) and value.get("frequency") == "weekly":
-                expenses.append(value.get("value", 0)*4.33)
-        return sum(expenses)
+    def add_budget_item(self, item):
+        self.budget[item["name"]] = {
+            "value": item["value"],
+            "frequency": item["frequency"],
+            "last_update": self.time
+        }
+
+    def update_budget_items(self):
+        self.budget = {k: {**v, "value": v["value"] * (1+(self.expenditure_growth_beyond_inflation/12)+(self.inflation/12))} for k, v in self.budget.items()}
+        if "mortgage" in self.budget:
+            self.budget["mortgage"]["value"] = self.home.monthly_payment
+
+    def calculate_monthly_expenses(self):
+        monthly_expenses = 0
+        for item in self.budget.values():
+            if item['frequency'] == 'monthly':
+                monthly_expenses += item['value']
+            elif item['frequency'] == 'weekly':
+                monthly_expenses += item['value'] * 4.33
+            # Annual expenses are handled separately
+        return monthly_expenses
+
+    def calculate_annual_expenses(self):
+        return sum(item['value'] for item in self.budget.values() if item['frequency'] == 'annual')
 
     def check_home_purchase(self):
         if self.home_purchase_date and not self.owns_home:
-            if ensure_date(self.time) > ensure_date(self.home_purchase_date):
+            if ensure_date(self.time) >= ensure_date(self.home_purchase_date):
                 state_property_tax_rate = self.state_tax_data['property_tax'] / 100 if self.state_tax_data else 0
-                self.home = Home(self.home_purchase_date, self.home_purchase_price, self.down_payment, self.mortgage_rate, self.mortgage_term_years, property_tax_rate=state_property_tax_rate)
+                self.home = Home(self.home_purchase_date, self.home_purchase_price, self.down_payment, 
+                                 self.mortgage_rate, self.mortgage_term_years, 
+                                 property_tax_rate=state_property_tax_rate)
                 self.investments -= self.home.down_payment
                 self.owns_home = True
-            if "rent" in self.budget.keys() and self.owns_home:
-                #remove rent and add mortgage payment
-                self.add_budget_item({"name":"mortgage", "value":self.home.monthly_payment, "frequency":"monthly"})
-                self.budget["rent"]["value"] = 0
-            if self.owns_home and "mortgage" in self.budget.keys():
-                if self.home.paid_off:
-                    self.budget.pop("mortgage")
-                    self.owns_home = False
+                
+                # Remove rent from budget and add mortgage
+                if "rent" in self.budget:
+                    del self.budget["rent"]
+                self.add_budget_item({
+                    "name": "mortgage",
+                    "value": self.home.monthly_payment,
+                    "frequency": "monthly"
+                })
+        
+        if self.owns_home and "mortgage" in self.budget:
+            if self.home.paid_off:
+                del self.budget["mortgage"]
+
         return self.owns_home
 
     def step_month(self):
         self.month += 1
-        is_new_year = False if self.month % 12 else True
-        contribute_to_savings = 0
-        monthly_expenses = self.get_monthly_expenses()
+        self.time += timedelta(days=30.44)
+        is_new_year = self.month % 12 == 0
+
+        # Update budget items for inflation and growth
+        self.update_budget_items()
+
+        # Calculate expenses
+        monthly_expenses = self.calculate_monthly_expenses()
+        annual_expenses = self.calculate_annual_expenses() if is_new_year else 0
+
+        # Calculate income and taxes
         income = self.income / 12
         if is_new_year:
             self.age += 1
             self.income *= (1 + self.income_growth)
-            self.expenditure *= (1 + self.expenditure_growth_beyond_inflation)
-            annual_expenses = self.get_annual_expenses()
-            taxes = self.calculate_taxes((12 * monthly_expenses) + annual_expenses)
-            contribute_to_savings -= annual_expenses
+            taxes = self.calculate_taxes(monthly_expenses * 12 + annual_expenses)
         else:
             taxes = 0
-            annual_expenses = 0
 
-        # calculate expenses
-        monthly_expenses = self.get_monthly_expenses()
+        # Handle random life events
+        if np.random.random() < self.life_events_per_year / 12:
+            life_event_cost = np.random.normal(self.average_life_event_cost, self.life_events_std_dev)
+            self.emergency_fund_current -= life_event_cost
+            monthly_expenses += life_event_cost  # Add to this month's expenses
 
-        # random life events (life_events_per_year is an average, use random)
-        if random.random() < self.life_events_per_year / 12:
-            self.emergency_fund_current -= np.random.normal(self.average_life_event_cost, self.life_events_std_dev)
-
-        # calculate savings
+        # Calculate savings and investments
         this_month_savings = income - monthly_expenses - taxes - annual_expenses
         if this_month_savings > 0:
-            # prioritize maxing out emergency fund
             if self.emergency_fund_current < self.emergency_fund_target:
-                if self.emergency_fund_current + this_month_savings > self.emergency_fund_target:
-                    this_month_savings -= self.emergency_fund_target - self.emergency_fund_current
-                    self.emergency_fund_current = self.emergency_fund_target
-                else:
-                    self.emergency_fund_current += this_month_savings
-                    this_month_savings = 0
+                emergency_fund_contribution = min(this_month_savings, self.emergency_fund_target - self.emergency_fund_current)
+                self.emergency_fund_current += emergency_fund_contribution
+                this_month_savings -= emergency_fund_contribution
 
-        # calculate investment returns
+        # Update investments
         investment_returns = 1 + self.get_random_month_all_investment_returns()
-        self.investments += this_month_savings
-        self.investments *= investment_returns
+        self.investments = (self.investments + this_month_savings) * investment_returns
 
-        # check if major expenses are due
+        # Handle major purchases
         for purchase in self.major_purchases:
-            if self.time >= purchase.date:
-                if purchase.purchase_type == 'cash':
-                    self.investments -= purchase.cost
-                    self.major_purchases.remove(purchase)
-                elif purchase.purchase_type in ['finance', 'lease']:
-                    if purchase.down_payment and purchase.down_payment > 0:
+            if ensure_date(self.time) >= ensure_date(purchase.purchase_date):
+                if purchase.months_elapsed == 0:
+                    if purchase.purchase_type == 'cash':
+                        self.investments -= purchase.total_cost
+                    elif purchase.purchase_type in ['finance', 'lease']:
                         self.investments -= purchase.down_payment
-                        purchase.down_payment = 0
-                    monthly_payment = purchase.make_payment()
-                    self.investments -= monthly_payment
-                    if purchase.purchase_type == 'finance' and purchase.remaining_balance <= 0:
-                        self.major_purchases.remove(purchase)
-                    elif purchase.purchase_type == 'lease' and (self.time - purchase.date).days >= purchase.term * 30:
-                        self.major_purchases.remove(purchase)
+                payment = purchase.make_payment(ensure_date(self.time))
+                self.investments -= payment
+                purchase.update_value()
 
-        # check if home purchase
-        if self.check_home_purchase():
-            self.home.make_payment(self.time)
+        # Check for home purchase
+        self.check_home_purchase()
 
+        # Update home equity
         self.home_equity = 0 if not self.owns_home else self.home.home_equity
-
-        # calculate net worth
-        net_worth = self.investments + self.home_equity + self.emergency_fund_current
-        mortgage_balance = 0 if not self.owns_home else self.home.loan_balance
-        initial_loan_balance = 0 if not self.owns_home else self.home.initial_loan_balance
-        housing_cost = 0
-        if "rent" in self.budget.keys():
-            housing_cost += self.budget["rent"]["value"]
-        if "mortgage" in self.budget.keys():
-            housing_cost += self.budget["mortgage"]["value"]
         
-        home_equity_value_without_growth = float(initial_loan_balance if initial_loan_balance is not None else 0) - float(mortgage_balance if mortgage_balance is not None else 0) + float(self.down_payment if self.down_payment is not None else 0)
+        # Calculate net worth
+        net_worth = self.investments + self.home_equity + self.emergency_fund_current
+        for purchase in self.major_purchases:
+            net_worth += purchase.get_net_worth_impact()
+
+        # Prepare row for time series
         row = {
             "month": self.month,
             "age": self.age,
-            "mortgage balance": mortgage_balance,
             "income": income,
-            "annual_income": 12 * income,
-            "expenditure": monthly_expenses + annual_expenses,
-            "housing_cost": housing_cost,
-            "investment_returns": investment_returns,
+            "annual_income": self.income,
+            "monthly_expenses": monthly_expenses,
+            "annual_expenses": annual_expenses,
             "taxes": taxes,
-            "home_equity_value_with_growth": self.home_equity,
-            "home_equity_value_without_growth": home_equity_value_without_growth,
             "investments": self.investments,
             "emergency_fund": self.emergency_fund_current,
-            "net_worth": net_worth
+            "net_worth": net_worth,
+            "home_equity": self.home_equity
         }
-        # round all values to 2 decimal places if they are floats
-        for key in row.keys():
-            if isinstance(row[key], float):
-                row[key] = round(row[key], 2)
-        self.time_series = pd.concat([self.time_series, pd.DataFrame(row, index=[0])], ignore_index=True)
 
-        # if location change and the date of the location change is this month, multiply each budget item by the COL adjustment
-        if self.location_change:
-            self.location_change_date = ensure_date(self.location_change_date)
-            if self.location_change_date and self.location_change_date < self.time:
-                self.state = self.location_change_state
+        # Add budget items to the row
+        for item_name, item in self.budget.items():
+            row[f"budget_{item_name}"] = item['value']
 
-                for key in self.budget.keys():
-                    self.budget[key]["value"] *= self.location_col_adjustment if self.location_col_adjustment is not None else 0
-                if self.owns_home:
-                    self.home.hoa *= self.location_col_adjustment
-                    self.home.property_tax_rate = self.location_property_tax_adjustment + self.state_tax_data['property_tax'] / 100 if self.state_tax_data else 0
-                self.location_change = False
-            elif self.location_change_date and self.location_change_date > self.time and self.location_change_moving_costs > 0:
-                # add major expense for moving costs
-                self.add_major_purchase("moving costs", self.location_change_moving_costs, self.location_change_date)
-                self.location_change_moving_costs = 0
+        if self.home:
+            row["home_value"] = self.home.home_value
+            row["loan_balance"] = self.home.loan_balance
+            self.home.make_payment(self.time)
+        # Append to time series
+        self.time_series = pd.concat([self.time_series, pd.DataFrame([row])], ignore_index=True)
 
-        self.time += timedelta(days=30.5)
-
-        # check if retirement goal is met
-        paid_off = False
-        loan_balance = 0
-        if self.owns_home:
-            paid_off = self.home.paid_off
-            loan_balance = self.home.loan_balance
-        if self.retirement_goal == 0:
-            self.retirement_goal = (self.post_retirement_expenses - self.average_post_retirement_income) / self.retirement_income_ratio
-            self.retirement_goal += self.get_simple_taxes(self.post_retirement_expenses) / self.retirement_income_ratio
-        if self.investments > self.retirement_goal and not self.retirement_age and not self.pay_off_mortgage_before_retirement:
-            self.retirement_age = self.age
-        if self.pay_off_mortgage_before_retirement and paid_off and not self.retirement_age:
-            self.retirement_age = self.age
-        if self.pay_off_mortgage_before_retirement and not paid_off and not self.retirement_age:
-            updated_goal = self.retirement_goal + loan_balance
-            if self.investments > updated_goal:
-                self.retirement_age = self.age
-
+        # Check for retirement
+        if not self.retirement_age:
+            if self.investments >= self.retirement_goal:
+                if not self.pay_off_mortgage_before_retirement or (self.owns_home and self.home.paid_off):
+                    self.retirement_age = self.age
+        if self.retirement_goal <= 0:
+            self.retirement_goal = (self.post_retirement_expenses-self.average_post_retirement_income)/self.retirement_income_ratio
     def step_year(self):
         for i in range(12):
             self.step_month()
@@ -546,7 +572,9 @@ class User:
         with open('user_data.pkl', 'rb') as inp:
             user = pickle.load(inp)
             self.__dict__.update(user.__dict__)
-
+    
+    def __str__(self):
+        return f"User: {self.age}, {self.income}, {self.budget}, {self.expenditure}, {self.income_growth}, {self.risk_tolerance}, {self.expenditure_growth_beyond_inflation}, {self.current_savings}, {self.max_401k_contribution}, {self.max_ira_contribution}, {self.max_hsa_contribution}, {self.other_tax_sheltered_income}, {self.investment_vehicles}, {self.investments}, {self.post_retirement_expenses}, {self.major_purchases}, {self.married}, {self.emergency_fund_current}, {self.emergency_fund_target}, {self.time_series}, {self.home}, {self.home_purchase_date}, {self.owns_home}, {self.home_purchase_price}, {self.down_payment}, {self.mortgage_rate}, {self.mortgage_term_years}, {self.home_equity}, {self.home_value}, {self.property_tax}, {self.inflation}, {self.time}, {self.month}, {self.average_life_event_cost}, {self.life_events_per_year}, {self.life_events_std_dev}, {self.pay_off_mortgage_before_retirement}, {self.post_retirement_expenses}, {self.average_post_retirement_income}, {self.retirement_income_ratio_brackets}, {self.retirement_income_ratio}, {self.retirement_goal}, {self.retirement_age}, {self.location_change}, {self.location_col_adjustment}, {self.location_property_tax_adjustment}, {self.location_state_income_tax_adjustment}, {self.location_change_date}, {self.location_change_moving_costs}, {self.location_change_state}, {self.state}, {self.state_tax_data}, {self.total_growth}"
 # Define a global counter and lock
 global_months_counter = 0
 threadLock = threading.Lock()
@@ -597,9 +625,8 @@ def monte_carlo_simulation(years=20, simulations=1000, num_threads=4, user=User(
 
     if not valid_retirement_ages:
         st.warning("No simulations reached the retirement goal.")
-        return None, None, None, None, None
-
-    average_retirement_age = sum(valid_retirement_ages) / len(valid_retirement_ages)
+        reset_counter()
+    average_retirement_age = sum(valid_retirement_ages) / max(len(valid_retirement_ages), 0.1)
     stdev_retirement_age = np.std(valid_retirement_ages)
     
     combined_time_series = pd.concat(all_time_series, ignore_index=True)
@@ -662,16 +689,22 @@ def run_simulation_local(user_data):
             investment_vehicle.get("distribution_type", "normal-monthly")  # Default to "normal-monthly" if not specified
         )
     
-    for major_purchase in user_data.get("major_purchases", []):
+    for purchase in user_data.get("major_purchases", []):
         user.add_major_purchase(
-            major_purchase["name"],
-            major_purchase["cost"],
-            major_purchase["date"],
-            major_purchase["purchase_type"],
-            major_purchase.get("term"),
-            major_purchase.get("interest_rate"),
-            major_purchase.get("down_payment"),
-            major_purchase.get("monthly_payment")
+            item_name=purchase["item_name"],
+            purchase_date=purchase["purchase_date"],
+            total_cost=purchase["total_cost"],
+            purchase_type=purchase["purchase_type"],
+            down_payment=purchase.get("down_payment", 0),
+            loan_amount=purchase.get("loan_amount", 0),
+            interest_rate=purchase.get("interest_rate", 0),
+            loan_term_months=purchase.get("loan_term_months", 0),
+            lease_term_months=purchase.get("lease_term_months", 0),
+            monthly_lease_payment=purchase.get("monthly_lease_payment", 0),
+            buy_residual=purchase.get("buy_residual", False),
+            residual_value=purchase.get("residual_value", 0),
+            consider_in_net_worth=purchase.get("consider_in_net_worth", False),
+            asset_value_change=purchase.get("asset_value_change", 0)
         )
 
     if user_data.get("home_purchase", {}).get("price", 0) != 0:
@@ -680,7 +713,7 @@ def run_simulation_local(user_data):
         user.down_payment = user_data["home_purchase"]["down_payment"]
         user.mortgage_rate = user_data["home_purchase"]["mortgage_rate"]
         user.mortgage_term_years = user_data["home_purchase"]["mortgage_term_years"]
-        user.pay_off_mortgage_before_retirement = user_data["home_purchase"]["pay_off_before_retirement"]
+        user.pay_off_mortgage_before_retirement = user_data["home_purchase"].get("pay_off_before_retirement", False)
         user.property_tax = user_data["home_purchase"]["property_tax"]
     
     if user_data.get("location_change", {}).get("date", None):
@@ -694,5 +727,4 @@ def run_simulation_local(user_data):
     num_simulations = user_data.get("num_simulations", 10)
 
     ts_df, average_retirement_age, stdev_retirement_age, all_time_series, retirement_ages = monte_carlo_simulation(years=simulate_years, simulations=num_simulations, user=user)
-
     return ts_df, average_retirement_age, stdev_retirement_age, all_time_series, retirement_ages, user

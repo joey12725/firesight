@@ -4,6 +4,8 @@ from boto3.dynamodb.conditions import Key
 import datetime
 import json
 import os
+from datetime import date
+from st_repeating_field_group import generate_repeating_field_group
 
 # DynamoDB configuration
 try:
@@ -16,7 +18,7 @@ except:
     table = dynamodb.Table('firesight-users')
     
 # Set page configuration
-st.set_page_config(page_title="FIRESight - Edit Profile", page_icon="🔥")
+st.set_page_config(page_title="FIRESight - Edit Profile", page_icon="👨")
 
 global tooltips
 tooltips = st.toggle("Would you like to see tooltips?", value=True)
@@ -31,78 +33,6 @@ def tooltip(text, type="caption"):
             st.latex(f"🛈 {text}")
         elif type == "title":
             st.title(f"🛈 {text}")
-
-def generate_repeating_field_group(keys, group_id, default_values=None):
-    if f"rows_{group_id}" not in st.session_state or not st.session_state[f"rows_{group_id}"]:
-        if default_values:
-            st.session_state[f"rows_{group_id}"] = [str(i) for i in range(len(default_values))]
-        else:
-            st.session_state[f"rows_{group_id}"] = []
-
-    rows_collection = []
-
-    def add_row():
-        new_index = str(len(st.session_state[f"rows_{group_id}"]))
-        st.session_state[f"rows_{group_id}"].append(new_index)
-
-    def remove_row(row_id):
-        st.session_state[f"rows_{group_id}"].remove(str(row_id))
-
-    def generate_row(row_id, defaults=None):
-        row_container = st.container()
-        row_columns = row_container.columns((3, 1))
-        field_group = {}
-
-        for key, value in keys.items():
-            field_type = value["type"]
-            default_value = defaults.get(key, value["default"]) if defaults else value["default"]
-
-            if key == "purchase_type":
-                field_group[key] = row_columns[0].selectbox(key, options=["cash", "finance", "lease"], key=f"{key}_{row_id}_{group_id}")
-            elif field_type == int:
-                try:
-                    int_value = int(default_value) if default_value is not None else 0
-                except ValueError:
-                    int_value = 0
-                field_group[key] = row_columns[0].number_input(key, value=int_value, step=1, key=f"{key}_{row_id}_{group_id}")
-            elif field_type == float:
-                try:
-                    float_value = float(default_value) if default_value is not None else 0.0
-                except ValueError:
-                    float_value = 0.0
-                field_group[key] = row_columns[0].number_input(key, value=float_value, format="%.2f", key=f"{key}_{row_id}_{group_id}")
-            elif field_type == str:
-                field_group[key] = row_columns[0].text_input(key, value=str(default_value) if default_value is not None else "", key=f"{key}_{row_id}_{group_id}")
-            elif field_type == "choice":
-                choices = value["choices"]
-                field_group[key] = row_columns[0].selectbox(key, options=choices, index=choices.index(default_value), key=f"{key}_{row_id}_{group_id}")
-            elif field_type == "date":
-                if isinstance(default_value, str):
-                    try:
-                        date_value = datetime.date.fromisoformat(default_value)
-                    except ValueError:
-                        date_value = datetime.date.today()
-                elif isinstance(default_value, datetime.date):
-                    date_value = default_value
-                else:
-                    date_value = datetime.date.today()
-                field_group[key] = row_columns[0].date_input(key, value=date_value, key=f"{key}_{row_id}_{group_id}")
-            else:
-                raise ValueError(f"Invalid field type: {field_type}")
-
-        row_columns[1].button("🗑️", key=f"del_{row_id}_{group_id}", on_click=remove_row, args=[row_id])
-        return field_group
-
-    menu = st.columns(2)
-    with menu[0]:
-        st.button("Add Item", on_click=add_row, key=f"add_item_{group_id}")
-
-    for row_index in st.session_state[f"rows_{group_id}"]:
-        defaults = default_values[int(row_index)] if default_values and int(row_index) < len(default_values) else None
-        row_data = generate_row(row_index, defaults)
-        rows_collection.append(row_data)
-
-    return rows_collection
 
 def fetch_user_profile(user_id):
     response = table.get_item(Key={'userid': user_id})
@@ -226,14 +156,108 @@ def create_user(user_data=None):
     }
 
     major_purchase_keys = {
-        "name": {"type": str, "default": ""},
-        "cost": {"type": float, "default": 0.0},
-        "date": {"type": "date", "default": datetime.date.today()},
-        "purchase_type": {"type": "choice", "default": "cash", "choices": ["cash", "finance", "lease"]},
-        "term": {"type": int, "default": 0},
-        "interest_rate": {"type": float, "default": 0.0},
-        "down_payment": {"type": float, "default": 0.0},
-        "monthly_payment": {"type": float, "default": 0.0}
+        "item_name": {
+            "type": str,
+            "default": ""
+        },
+        "purchase_date": {
+            "type": "date",
+            "default": date.today()
+        },
+        "total_cost": {
+            "type": float,
+            "default": 0.0
+        },
+        "purchase_type": {
+            "type": "choice",
+            "choices": ["cash", "finance", "lease"],
+            "default": "cash"
+        },
+        "down_payment": {
+            "type": float,
+            "default": 0.0,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type"},
+                "func": lambda purchase_type: purchase_type in ["finance", "lease"]
+            }
+        },
+        "loan_amount": {
+            "type": float,
+            "default": 0.0,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type"},
+                "func": lambda purchase_type: purchase_type == "finance"
+            }
+        },
+        "interest_rate": {
+            "type": float,
+            "default": 0.0,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type"},
+                "func": lambda purchase_type: purchase_type == "finance"
+            }
+        },
+        "loan_term_months": {
+            "type": int,
+            "default": 36,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type"},
+                "func": lambda purchase_type: purchase_type == "finance"
+            }
+        },
+        "lease_term_months": {
+            "type": int,
+            "default": 36,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type"},
+                "func": lambda purchase_type: purchase_type == "lease"
+            }
+        },
+        "monthly_lease_payment": {
+            "type": float,
+            "default": 0.0,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type"},
+                "func": lambda purchase_type: purchase_type == "lease"
+            }
+        },
+        "buy_residual": {
+            "type": "checkbox",
+            "default": False,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type"},
+                "func": lambda purchase_type: purchase_type == "lease"
+            }
+        },
+        "residual_value": {
+            "type": float,
+            "default": 0.0,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type", "buy_residual": "buy_residual"},
+                "func": lambda purchase_type, buy_residual: purchase_type == "lease" and buy_residual
+            }
+        },
+        "consider_in_net_worth": {
+            "type": "checkbox",
+            "default": False,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type", "buy_residual": "buy_residual"},
+                "func": lambda purchase_type, buy_residual: purchase_type in ["cash", "finance"] or (purchase_type == "lease" and buy_residual)
+            }
+        },
+        "asset_value_change": {
+            "type": "slider",
+            "default": 0,
+            "min": -20,
+            "max": 20,
+            "step": 0.5,
+            "only_show_if": {
+                "kwargs": {"purchase_type": "purchase_type", "buy_residual": "buy_residual", "consider_in_net_worth": "consider_in_net_worth"},
+                "func": lambda purchase_type, buy_residual, consider_in_net_worth: 
+                    (purchase_type in ["cash", "finance"] and consider_in_net_worth) or 
+                    (purchase_type == "lease" and buy_residual and consider_in_net_worth)
+            }
+        }
     }
 
     st.subheader("Budget Items")
@@ -314,9 +338,14 @@ By strategically using these investment vehicles, individuals can accelerate the
     average_post_retirement_income = st.number_input("Average Post Retirement Income (not including investments)", min_value=0.0, value=average_post_retirement_income, step=1000.0)
     tooltip("This is the amount you expect to earn each year in retirement outside of your investment. It should be adjusted for inflation.")
     simulate_years = st.slider("Simulation Years", min_value=1, max_value=50, value=simulate_years, step=1, key="simulate_years_slider")
-    tooltip("This is the number of years you want to simulate to see if you can retire early. It should be a few years longer than your expected retirement age.")
-    num_simulations = st.slider("Number of Simulations", min_value=1, max_value=50, value=num_simulations, step=1, format="Count: %d", key="num_simulations_slider")
+    tooltip("This is the number of years you want to simulate to see if you can retire early. It should be a few years longer than your expected retirement age. More years takes more time but reduces the chances of the simulation not reaching your retirement age.")
+    num_simulations = st.slider("Number of Simulations", min_value=1, max_value=100, value=num_simulations, step=1, format="Count: %d", key="num_simulations_slider")
     tooltip("This is the number of simulations you want to run to see if you can retire early. More simulations will give you a more accurate result, but a longer time to compute.")
+
+    if simulate_years < 12:
+        st.warning(f"Unless you are confident you  are less than {simulate_years} years from your FIRE number, it is recommended to simulate a larger number of years to ensure you have a good buffer.")
+    if num_simulations < 10:
+        st.warning(f"The more simulations you run, the more accurate your results will be. It is recommended to run at least 10 simulations.")
 
     if st.button("Save Profile"):
         user_data = {
@@ -348,14 +377,20 @@ By strategically using these investment vehicles, individuals can accelerate the
             ],
             "major_purchases": [
                 {
-                    "name": purchase["name"],
-                    "cost": purchase["cost"],
-                    "date": str(purchase["date"]),
+                    "item_name": purchase["item_name"],
+                    "purchase_date": str(purchase["purchase_date"]),
+                    "total_cost": purchase["total_cost"],
                     "purchase_type": purchase["purchase_type"],
-                    "term": purchase["term"] if purchase["purchase_type"] in ["finance", "lease"] else None,
-                    "interest_rate": purchase["interest_rate"] if purchase["purchase_type"] == "finance" else None,
-                    "down_payment": purchase["down_payment"] if purchase["purchase_type"] in ["finance", "lease"] else None,
-                    "monthly_payment": purchase["monthly_payment"] if purchase["purchase_type"] in ["finance", "lease"] else None
+                    "down_payment": purchase.get("down_payment", 0),
+                    "loan_amount": purchase.get("loan_amount", 0),
+                    "interest_rate": purchase.get("interest_rate", 0),
+                    "loan_term_months": purchase.get("loan_term_months", 0),
+                    "lease_term_months": purchase.get("lease_term_months", 0),
+                    "monthly_lease_payment": purchase.get("monthly_lease_payment", 0),
+                    "buy_residual": purchase.get("buy_residual", False),
+                    "residual_value": purchase.get("residual_value", 0),
+                    "consider_in_net_worth": purchase.get("consider_in_net_worth", False),
+                    "asset_value_change": purchase.get("asset_value_change", 0)
                 } for purchase in major_purchases
             ],
             "home_purchase": {

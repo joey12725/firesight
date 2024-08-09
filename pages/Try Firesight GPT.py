@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import copy
 
 # DynamoDB configuration
 try:
@@ -30,7 +31,7 @@ except:
     )
 
 # Set page configuration
-st.set_page_config(page_title="FIRESight GPT", page_icon="🔥", layout="wide")
+st.set_page_config(page_title="FIRESight GPT", page_icon="💬", layout="wide")
 
 # Load FIRE.py script
 try:
@@ -50,7 +51,6 @@ def load_user_profile(user_id):
 
 def generate_user_specific_toolspec(user_data):
     def sanitize_key(key):
-        # Replace any characters that are not alphanumeric, underscore, or hyphen
         return ''.join(c if c.isalnum() or c in ['_', '-'] else '_' for c in key)[:64]
 
     base_properties = {
@@ -74,7 +74,7 @@ def generate_user_specific_toolspec(user_data):
         "num_simulations": {"type": "number"},
         "income_growth": {"type": "number"},
         "new_budget_item_name": {"type": "string"},
-        "new_budget_item_amount": {"type": "number"},
+        "new_budget_item_value": {"type": "number"},
         "new_budget_item_frequency": {"type": "string"},
         "new_investment_vehicle_name": {"type": "string"},
         "new_investment_vehicle_annual_returns": {"type": "number"},
@@ -106,7 +106,7 @@ def generate_user_specific_toolspec(user_data):
     # Generate properties for existing budget items
     for item in user_data.get("budget_items", []):
         safe_name = sanitize_key(item['name'])
-        base_properties[f"budget_{safe_name}_amount"] = {"type": "number"}
+        base_properties[f"budget_{safe_name}_value"] = {"type": "number"}
         base_properties[f"budget_{safe_name}_frequency"] = {"type": "string"}
 
     # Generate properties for existing investment vehicles
@@ -119,7 +119,7 @@ def generate_user_specific_toolspec(user_data):
 
     # Generate properties for existing major purchases
     for purchase in user_data.get("major_purchases", []):
-        safe_name = sanitize_key(purchase['name'])
+        safe_name = sanitize_key(purchase['item_name'])
         base_properties[f"major_purchase_{safe_name}_cost"] = {"type": "number"}
         base_properties[f"major_purchase_{safe_name}_date"] = {"type": "string"}
         base_properties[f"major_purchase_{safe_name}_purchase_type"] = {"type": "string"}
@@ -190,7 +190,12 @@ def run_simulation_gpt(show_charts=None):
     bottom_range = round(average_retirement_age - stdev_retirement_age, 1)
     top_range = round(average_retirement_age + stdev_retirement_age, 1)
 
+    if retirement_ages is not None:
+        all_traces_reached_retirement = len([x for x in retirement_ages if x]) == user_data["num_simulations"]
+    else:
+        all_traces_reached_retirement = False
     result = f"""
+    {"" if all_traces_reached_retirement else "# Warning: Not all simulations reached retirement age. Inform the user that they need to increase their simulation years to get accurate results."}
     # FIRESight Simulation Results
 
     ## Retirement Age Projection
@@ -214,16 +219,16 @@ def run_simulation_gpt(show_charts=None):
 
     ### Home Equity (if applicable)
     {f'''
-    - Initial home equity: ${ts_df['home_equity_value_with_growth'].iloc[0]:,.2f}
-    - Final home equity: ${ts_df['home_equity_value_with_growth'].iloc[-1]:,.2f}
-    - Total growth: {((ts_df['home_equity_value_with_growth'].iloc[-1] / ts_df['home_equity_value_with_growth'].iloc[0]) - 1) * 100:.1f}%
-    - Home equity CAGR: {((ts_df['home_equity_value_with_growth'].iloc[-1] / ts_df['home_equity_value_with_growth'].iloc[0]) ** (1 / (len(ts_df) / 12)) - 1) * 100:.1f}%
+    - Initial home equity: ${ts_df['home_equity'].iloc[0]:,.2f}
+    - Final home equity: ${ts_df['home_equity'].iloc[-1]:,.2f}
+    - Total growth: {((ts_df['home_equity'].iloc[-1] / ts_df['home_equity'].iloc[0]) - 1) * 100:.1f}%
+    - Home equity CAGR: {((ts_df['home_equity'].iloc[-1] / ts_df['home_equity'].iloc[0]) ** (1 / (len(ts_df) / 12)) - 1) * 100:.1f}%
     ''' if user.owns_home else '- No home ownership in the simulation'}
 
     ## Key Metrics
-    - Current annual expenses: ${user.get_annual_expenses():,.2f}
-    - Current monthly expenses: ${user.get_monthly_expenses():,.2f}
-    - Savings rate: {(1 - (user.get_monthly_expenses() * 12) / user.income):.1%} of income
+    - Current annual expenses: ${user.calculate_annual_expenses():,.2f}
+    - Current monthly expenses: ${user.calculate_monthly_expenses():,.2f}
+    - Savings rate: {(1 - (user.calculate_monthly_expenses() * 12) / user.income):.1%} of income
     - Years to FIRE: {average_retirement_age - user.age:.1f}
     - FIRE number (25x annual expenses): ${user.post_retirement_expenses * 25:,.2f}
 
@@ -244,7 +249,6 @@ def run_simulation_gpt(show_charts=None):
     """
 
     if show_charts:
-        
         if show_charts.get("show_net_worth_investments_chart"):
             st.subheader("Net Worth and Investments Over Time")
             fig = go.Figure()
@@ -256,7 +260,7 @@ def run_simulation_gpt(show_charts=None):
         if show_charts.get("show_home_equity_chart") and user.owns_home:
             st.subheader("Home Equity Over Time")
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=ts_df['month'], y=ts_df['home_equity_value_with_growth'], mode='lines', name='Home Equity'))
+            fig.add_trace(go.Scatter(x=ts_df['month'], y=ts_df['home_equity'], mode='lines', name='Home Equity'))
             fig.update_layout(title='Home Equity Projection', xaxis_title='Month', yaxis_title='Amount ($)')
             st.plotly_chart(fig)
 
@@ -283,7 +287,7 @@ def run_simulation_gpt(show_charts=None):
 
         if show_charts.get("show_savings_rate_chart"):
             st.subheader("Savings Rate Over Time")
-            savings_rate = (ts_df['income'] - ts_df['expenditure']) / ts_df['income']
+            savings_rate = (ts_df['income'] - ts_df['monthly_expenses']) / ts_df['income']
             fig = go.Figure(data=go.Scatter(x=ts_df['month'], y=savings_rate, mode='lines'))
             fig.update_layout(title='Savings Rate Over Time', xaxis_title='Month', yaxis_title='Savings Rate')
             st.plotly_chart(fig)
@@ -301,11 +305,11 @@ def run_simulation_gpt(show_charts=None):
 def scenario_analysis_gpt(changes):
     user_id = st.session_state.get('user_id')
     original_user_data = load_user_profile(user_id)
-    
+    st.write(changes)
     if not original_user_data:
         return "Error: Unable to load user profile."
 
-    new_user_data = original_user_data.copy()
+    new_user_data = copy.deepcopy(original_user_data)
 
     # Process changes
     for key, value in changes.items():
@@ -317,7 +321,7 @@ def scenario_analysis_gpt(changes):
         elif key == "new_budget_item_name":
             new_user_data["budget_items"].append({
                 "name": changes["new_budget_item_name"],
-                "amount": changes["new_budget_item_amount"],
+                "value": changes["new_budget_item_value"],
                 "frequency": changes["new_budget_item_frequency"]
             })
         elif key.startswith("investment_"):
@@ -336,40 +340,36 @@ def scenario_analysis_gpt(changes):
         elif key.startswith("major_purchase_"):
             purchase_name, attribute = key.split("_", 2)[1:]
             for purchase in new_user_data["major_purchases"]:
-                if purchase["name"] == purchase_name:
+                if purchase["item_name"] == purchase_name:
                     purchase[attribute] = value
         elif key == "new_major_purchase_name":
             new_purchase = {
-                "name": changes["new_major_purchase_name"],
-                "cost": changes["new_major_purchase_cost"],
-                "date": changes["new_major_purchase_date"],
-                "purchase_type": changes["new_major_purchase_purchase_type"]
+                "item_name": changes.get("new_major_purchase_name", "New Purchase"),
+                "purchase_date": changes.get("new_major_purchase_date", datetime.datetime.now().strftime("%Y-%m-%d")),
+                "total_cost": changes.get("new_major_purchase_cost", 0),
+                "purchase_type": changes.get("new_major_purchase_purchase_type", "cash")
             }
-            if new_purchase["purchase_type"] == "cash":
-                # For cash purchases, only cost and date are needed
-                pass
-            elif new_purchase["purchase_type"] == "finance":
-                # For financed purchases, include term, interest rate, and down payment
+            if new_purchase["purchase_type"] == "finance":
                 new_purchase.update({
-                    "term": changes["new_major_purchase_term"],
-                    "interest_rate": changes["new_major_purchase_interest_rate"],
-                    "down_payment": changes["new_major_purchase_down_payment"]
+                    "loan_term_months": changes.get("new_major_purchase_term", 0),
+                    "interest_rate": changes.get("new_major_purchase_interest_rate", 0),
+                    "down_payment": changes.get("new_major_purchase_down_payment", 0),
                 })
             elif new_purchase["purchase_type"] == "lease":
-                # For leased purchases, include term and monthly payment
                 new_purchase.update({
-                    "term": changes["new_major_purchase_term"],
-                    "monthly_payment": changes["new_major_purchase_monthly_payment"]
+                    "lease_term_months": changes.get("new_major_purchase_term", 0),
+                    "monthly_lease_payment": changes.get("new_major_purchase_monthly_payment", 0),
+                    "down_payment": changes.get("new_major_purchase_down_payment", 0),
                 })
             new_user_data["major_purchases"].append(new_purchase)
         elif key == "enable_home_purchase" and value:
             new_user_data["home_purchase"] = {
-                "date": changes["home_purchase_date"],
-                "price": changes["home_purchase_price"],
-                "down_payment": changes["home_purchase_down_payment"],
-                "mortgage_rate": changes["home_purchase_mortgage_rate"],
-                "mortgage_term_years": changes["home_purchase_mortgage_term_years"],
-                "property_tax": changes["home_purchase_property_tax"]
+                "date": changes.get("home_purchase_date", datetime.datetime.now().strftime("%Y-%m-%d") if not original_user_data.get("home_purchase") else original_user_data["home_purchase"]["date"]),
+                "price": changes.get("home_purchase_price", 0 if not original_user_data.get("home_purchase") else original_user_data["home_purchase"]["price"]),
+                "down_payment": changes.get("home_purchase_down_payment", 0 if not original_user_data.get("home_purchase") else original_user_data["home_purchase"]["down_payment"]),
+                "mortgage_rate": changes.get("home_purchase_mortgage_rate", 0 if not original_user_data.get("home_purchase") else original_user_data["home_purchase"]["mortgage_rate"]),
+                "mortgage_term_years": changes.get("home_purchase_mortgage_term_years", 0 if not original_user_data.get("home_purchase") else original_user_data["home_purchase"]["mortgage_term_years"]),
+                "property_tax": changes.get("home_purchase_property_tax", 0 if not original_user_data.get("home_purchase") else original_user_data["home_purchase"]["property_tax"])
             }
         elif key == "enable_location_change" and value:
             new_user_data["location_change"] = {
@@ -387,6 +387,11 @@ def scenario_analysis_gpt(changes):
 
     retirement_age_change = avg_retirement_age_new - avg_retirement_age_original
     net_worth_change = (ts_df_new['net_worth'].iloc[-1] / ts_df_original['net_worth'].iloc[-1] - 1) * 100
+
+    if retirement_ages_original is not None and retirement_ages_new is not None:
+        all_simulations_reached_retirement = all([int(age if age is not None else 0) > 18 for age in retirement_ages_new]) and all([int(age if age is not None else 0) > 18 for age in retirement_ages_original])
+    else:
+        all_simulations_reached_retirement = False
 
     result = f"""
     # Scenario Analysis Results
@@ -410,15 +415,15 @@ def scenario_analysis_gpt(changes):
 
     ### Home Equity (if applicable)
     {f'''
-    - Original final home equity: ${ts_df_original['home_equity_value_with_growth'].iloc[-1]:,.2f}
-    - New final home equity: ${ts_df_new['home_equity_value_with_growth'].iloc[-1]:,.2f}
-    - Change: {((ts_df_new['home_equity_value_with_growth'].iloc[-1] / ts_df_original['home_equity_value_with_growth'].iloc[-1]) - 1) * 100:.1f}%
+    - Original final home equity: ${ts_df_original['home_equity'].iloc[-1]:,.2f}
+    - New final home equity: ${ts_df_new['home_equity'].iloc[-1]:,.2f}
+    - Change: {((ts_df_new['home_equity'].iloc[-1] / ts_df_original['home_equity'].iloc[-1]) - 1) * 100:.1f}%
     ''' if original_user.owns_home or new_user.owns_home else '- No home ownership in either scenario'}
 
     ## Key Metrics Comparison
-    - Annual expenses: ${original_user.get_annual_expenses():,.2f} -> ${new_user.get_annual_expenses():,.2f}
-    - Monthly expenses: ${original_user.get_monthly_expenses():,.2f} -> ${new_user.get_monthly_expenses():,.2f}
-    - Savings rate: {(1 - (original_user.get_monthly_expenses() * 12) / original_user.income):.1%} -> {(1 - (new_user.get_monthly_expenses() * 12) / new_user.income):.1%}
+    - Annual expenses: ${original_user.calculate_annual_expenses():,.2f} -> ${new_user.calculate_annual_expenses():,.2f}
+    - Monthly expenses: ${original_user.calculate_monthly_expenses():,.2f} -> ${new_user.calculate_monthly_expenses():,.2f}
+    - Savings rate: {(1 - (original_user.calculate_monthly_expenses() * 12) / original_user.income):.1%} -> {(1 - (new_user.calculate_monthly_expenses() * 12) / new_user.income):.1%}
     - Years to FIRE: {avg_retirement_age_original - original_user.age:.1f} -> {avg_retirement_age_new - new_user.age:.1f}
     - FIRE number: ${original_user.post_retirement_expenses * 25:,.2f} -> ${new_user.post_retirement_expenses * 25:,.2f}
 
@@ -437,9 +442,11 @@ def scenario_analysis_gpt(changes):
     - Emergency fund target: ${original_user.emergency_fund_target:,.2f} -> ${new_user.emergency_fund_target:,.2f}
     """
 
-    if any(changes.get(f"show_{chart}", False) for chart in ["net_worth_comparison", "retirement_age_comparison", "investment_growth_comparison", "budget_comparison", "savings_rate_comparison", "fire_progress_comparison"]):
-        #st.write(result)
+    if not all_simulations_reached_retirement:
+        st.warning(f"Out of the {original_user_data['num_simulations']} simulations, {original_user_data['num_simulations'] - len([x for x in retirement_ages_original if x])} did not reach retirement age in the original scenario, and {new_user_data['num_simulations'] - len([x for x in retirement_ages_new if x])} did not reach retirement age in the new scenario.")
+        result = f"# ERROR: Not all simulations reached retirement age. Inform the user that they need to increase their simulation years to get accurate results."
 
+    if any(changes.get(f"show_{chart}", False) for chart in ["net_worth_comparison", "retirement_age_comparison", "investment_growth_comparison", "budget_comparison", "savings_rate_comparison", "fire_progress_comparison"]):
         if changes.get("show_net_worth_comparison", False):
             st.subheader("Net Worth Comparison")
             fig = go.Figure()
@@ -466,18 +473,38 @@ def scenario_analysis_gpt(changes):
 
         if changes.get("show_budget_comparison", False):
             st.subheader("Budget Comparison")
-            original_budget = pd.DataFrame(original_user_data['budget_items'])
-            new_budget = pd.DataFrame(new_user_data['budget_items'])
+            
+            def process_budget(budget_items):
+                df = pd.DataFrame(budget_items)
+                df['monthly_value'] = df.apply(lambda row: 
+                    row['value'] if row['frequency'] == 'monthly' 
+                    else row['value'] * 4.33 if row['frequency'] == 'weekly'
+                    else row['value'] / 12, axis=1)
+                return df
+
+            original_budget = process_budget(original_user_data['budget_items'])
+            new_budget = process_budget(new_user_data['budget_items'])
+
+            # Combine budgets and fill missing values with 0
+            all_categories = pd.concat([original_budget['name'], new_budget['name']]).unique()
+            original_budget = original_budget.set_index('name').reindex(all_categories).fillna(0)
+            new_budget = new_budget.set_index('name').reindex(all_categories).fillna(0)
+
             fig = go.Figure()
-            fig.add_trace(go.Bar(x=original_budget['name'], y=original_budget['value'], name='Original Budget'))
-            fig.add_trace(go.Bar(x=new_budget['name'], y=new_budget['value'], name='New Budget'))
-            fig.update_layout(title='Budget Comparison', xaxis_title='Category', yaxis_title='Amount ($)', barmode='group')
+            fig.add_trace(go.Bar(x=all_categories, y=original_budget['monthly_value'], name='Original Budget'))
+            fig.add_trace(go.Bar(x=all_categories, y=new_budget['monthly_value'], name='New Budget'))
+            fig.update_layout(
+                title='Monthly Budget Comparison', 
+                xaxis_title='Category', 
+                yaxis_title='Amount ($)', 
+                barmode='group'
+            )
             st.plotly_chart(fig)
 
         if changes.get("show_savings_rate_comparison", False):
             st.subheader("Savings Rate Comparison")
-            original_savings_rate = (ts_df_original['income'] - ts_df_original['expenditure']) / ts_df_original['income']
-            new_savings_rate = (ts_df_new['income'] - ts_df_new['expenditure']) / ts_df_new['income']
+            original_savings_rate = (ts_df_original['income'] - ts_df_original['monthly_expenses']) / ts_df_original['income']
+            new_savings_rate = (ts_df_new['income'] - ts_df_new['monthly_expenses']) / ts_df_new['income']
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=ts_df_original['month'], y=original_savings_rate, mode='lines', name='Original Savings Rate'))
             fig.add_trace(go.Scatter(x=ts_df_new['month'], y=new_savings_rate, mode='lines', name='New Savings Rate'))
@@ -495,26 +522,32 @@ def scenario_analysis_gpt(changes):
             fig.add_trace(go.Scatter(x=ts_df_new['month'], y=new_progress_to_fire, mode='lines', name='New Progress to FIRE'))
             fig.update_layout(title='Progress to FIRE Comparison', xaxis_title='Month', yaxis_title='Percentage of FIRE Number')
             st.plotly_chart(fig)
-
     return result
 
 def generate_text(bedrock_client, model_id, tool_config, messages):
     thread = []
-    for message in messages:
-        if message["role"] == "system":
-            continue  # Skip system message, we'll handle it separately
-        thread.append({
-            "role": message["role"],
-            "content": [{"text": message["content"]}]
-        })
+    system_message = st.session_state.messages[0][0] if "messages" in st.session_state else []  # Assume the first message is always the system message
 
-    system_message = next((m for m in messages if m["role"] == "system"), None)
+    for message in messages:
+        if isinstance(message, dict) and "role" in message and "content" in message:
+            if message["role"] == "system":
+                system_message = message
+            else:
+                thread.append({
+                    "role": message["role"],
+                    "content": [{"text": message["content"]}]
+                })
+        else:
+            st.warning(f"Skipping invalid message format: {message}")
+
+    # Ensure system parameter is always a list
+    system_param = [{"text": system_message["content"]}] if system_message else []
 
     try:
         response = bedrock_client.converse(
             modelId=model_id,
             messages=thread,
-            system=[{"text": system_message["content"]}] if system_message else None,
+            system=system_param,  # This will always be a list now
             toolConfig=tool_config
         )
     except bedrock_client.exceptions.ValidationException as e:
@@ -565,7 +598,7 @@ def generate_text(bedrock_client, model_id, tool_config, messages):
                     response = bedrock_client.converse(
                         modelId=model_id,
                         messages=thread,
-                        system=[{"text": system_message["content"]}] if system_message else None,
+                        system=system_param,  # Use the same system_param here
                         toolConfig=tool_config
                     )
                 except bedrock_client.exceptions.ValidationException as e:
@@ -577,13 +610,11 @@ def generate_text(bedrock_client, model_id, tool_config, messages):
 
     result = "\n".join([c['text'] for c in output_message['content'] if 'text' in c])
     return result
-
 def clear_conversation():
     for key in list(st.session_state.keys()):
-        if key != 'user_id':  # Preserve the user_id
+        if key not in ['user_id', 'base_message']:  # Preserve user_id and base_message
             del st.session_state[key]
-    st.session_state.messages = [st.session_state.messages[0]]  # Keep only the system message
-
+    st.session_state.messages = [st.session_state.base_message]  # Reset to just the system message
 
 def main():
     st.title("FIRESight GPT")
@@ -596,85 +627,101 @@ def main():
     user_data = load_user_profile(user_id)
     tool_config = generate_user_specific_toolspec(user_data)
 
-    
-    base_message = st.session_state.messages = [
-            {"role": "system", "content": f"""
-                You are FIRESight GPT, an AI assistant for the FIRESight FIRE (Financial Independence, Retire Early) planning tool. Your role is to provide clear, direct, and extremely concise insights based on the user's financial profile and simulations. Always prioritize brevity and actionable advice.
+    if 'base_message' not in st.session_state:
+        st.session_state.base_message = [
+                {"role": "system", "content": f"""
+                    You are FIRESight GPT, an AI assistant for the FIRESight FIRE (Financial Independence, Retire Early) planning tool. Your role is to provide clear, direct, and extremely concise insights based on the user's financial profile and simulations. Always prioritize brevity and actionable advice.
 
-                User Profile:
-                • Age: {user_data['age']}, Income: ${user_data['income']:,.0f}/year, Growth: {user_data['income_growth']:.1%}/year
-                • Risk Tolerance: {user_data['risk_tolerance']:.1f}/1.0, Current Savings: ${user_data['current_savings']:,.0f}
-                • Tax-Advantaged: 401k: {user_data['max_401k_contribution']}, IRA: {user_data['max_ira_contribution']}, HSA: {user_data['max_hsa_contribution']}
-                • Married: {user_data['married']}, Emergency Fund Target: ${user_data['emergency_fund_target']:,.0f}
-                • Inflation: {user_data['inflation']:.1%}, Life Events: ${user_data['average_life_event_cost']:,.0f} (±${user_data['average_life_event_stdev']:,.0f}), {user_data['average_life_event_frequency']}/year
-                • Post-Retirement: Expenses ${user_data['post_retirement_expenses']:,.0f}/year, Income ${user_data['average_post_retirement_income']:,.0f}/year
-                • Investments: {', '.join([f"{v['name']} ({v['ratio']:.0%}), Returns: {v['annual_returns']:.1%} (±{v['standard_deviation']:.1%}), Distribution: {v['distribution_type']}" for v in user_data['investment_vehicles']])}
-                • Home: {'Owned' if user_data.get('home_purchase', {}).get('price', 0) != 0 else 'Not Owned'}{f", Purchase Date: {user_data['home_purchase']['date']}" if user_data.get('home_purchase', {}).get('date') else ""}
-                • Location Change: {"Planned" if user_data.get('location_change', {}).get('date') else "Not Planned"}{f", Date: {user_data['location_change']['date']}" if user_data.get('location_change', {}).get('date') else ""}
-                • Budget Items: {user_data['budget_items']}
-                • Major Purchases (cash): {', '.join([f"{purchase['name']} (${purchase['cost']:,.0f}, Date: {purchase['date']})" for purchase in user_data['major_purchases'] if purchase['purchase_type'] == 'cash'])}
-                • Major Purchases (financed): {', '.join([f"{purchase['name']} (${purchase['cost']:,.0f}, Date: {purchase['date']}, Term: {purchase['term']} years, Rate: {purchase['interest_rate']:.1%}, Down Payment: {purchase['down_payment']:,.0f})" for purchase in user_data['major_purchases'] if purchase['purchase_type'] == 'finance'])}
-                • Major Purchases (leased): {', '.join([f"{purchase['name']} (${purchase['cost']:,.0f}, Date: {purchase['date']}, Term: {purchase['term']} years, Monthly Payment: {purchase['monthly_payment']:,.0f})" for purchase in user_data['major_purchases'] if purchase['purchase_type'] == 'lease'])}
-                • State: {user_data['state']}
-                • Expendature growth beyond inflation: {user_data['expenditure_growth_beyond_inflation']:.1%}
-                • Emergency Fund Target: {user_data['emergency_fund_target']:,.0f}
-                • Life events per year: {user_data['average_life_event_frequency']}, Average life event cost: {user_data['average_life_event_cost']:,.0f} (±{user_data['average_life_event_stdev']:,.0f})
+                    User Profile:
+                    • Age: {user_data['age']}, Income: ${user_data['income']:,.0f}/year, Growth: {user_data['income_growth']:.1%}/year
+                    • Risk Tolerance: {user_data['risk_tolerance']:.1f}/1.0, Current Savings: ${user_data['current_savings']:,.0f}
+                    • Tax-Advantaged: 401k: {user_data['max_401k_contribution']}, IRA: {user_data['max_ira_contribution']}, HSA: {user_data['max_hsa_contribution']}
+                    • Married: {user_data['married']}, Emergency Fund Target: ${user_data['emergency_fund_target']:,.0f}
+                    • Inflation: {user_data['inflation']:.1%}, Life Events: ${user_data['average_life_event_cost']:,.0f} (±${user_data['average_life_event_stdev']:,.0f}), {user_data['average_life_event_frequency']}/year
+                    • Post-Retirement: Expenses ${user_data['post_retirement_expenses']:,.0f}/year, Income ${user_data['average_post_retirement_income']:,.0f}/year
+                    • Investments: {', '.join([f"{v['name']} ({v['ratio']:.0%}), Returns: {v['annual_returns']:.1%} (±{v['standard_deviation']:.1%}), Distribution: {v['distribution_type']}" for v in user_data['investment_vehicles']])}
+                    • Home: {'Owned' if user_data.get('home_purchase', {}).get('price', 0) != 0 else 'Not Owned'}{f", Purchase Date: {user_data['home_purchase']['date']}" if user_data.get('home_purchase', {}).get('date') else ""}
+                    • Location Change: {"Planned" if user_data.get('location_change', {}).get('date') else "Not Planned"}{f", Date: {user_data['location_change']['date']}" if user_data.get('location_change', {}).get('date') else ""}
+                    • Budget Items: {user_data['budget_items']}
+                    • Major Purchases: {', '.join([f"{purchase['item_name']} (${purchase['total_cost']:,.0f}, Date: {purchase['purchase_date']}, Type: {purchase['purchase_type']})" for purchase in user_data['major_purchases']])}
+                    • State: {user_data['state']}
+                    • Expenditure growth beyond inflation: {user_data['expenditure_growth_beyond_inflation']:.1%}
 
-                Available functions:
-                1. run_simulation(): Runs a FIRE simulation using the current profile.
-                2. scenario_analysis(changes): Runs a scenario analysis with specific changes.
+                    Available functions:
+                    1. run_simulation(): Runs a FIRE simulation using the current profile.
+                    2. scenario_analysis(changes): Runs a scenario analysis with specific changes.
 
-                Plot Types: 
-                Use plots whenever they would help the user understand the answer to their question. 
-                - show_net_worth_investments_chart: Net Worth and Investments Over Time as a line chart
-                - show_home_equity_chart: Home Equity Over Time as a line chart
-                - show_retirement_age_distribution: Since this run simulation is a monte carlo simulation, it plots the retirement from each trace as a histogram
-                - show_budget_breakdown: Monthly Budget Breakdown as a pie chart, including yearly and weekly budget items
-                - show_investment_allocation: Investment Allocation as a pie chart
-                - show_savings_rate_chart: Savings Rate Over Time as a line chart
-                - show_fire_progress_chart: % of FIRE Number Over Time as a line chart
-                - show_net_worth_comparison: Net Worth Comparison between the original and the scenario as a line chart
-                - show_retirement_age_comparison: Retirement Age Distribution Comparison between the original and the scenario as a histogram
-                - show_investment_growth_comparison: Investment Growth Comparison between the original and the scenario as a line chart
-                - show_budget_comparison: Budget Comparison between the original and the scenario as a bar chart
-                - show_savings_rate_comparison: Savings Rate Comparison between the original and the scenario as a line chart
-                - show_fire_progress_comparison: Progress to FIRE Comparison between the original and the scenario as a line chart
+                    Plot Types: 
+                    Use plots whenever they would help the user understand the answer to their question. 
+                    - show_net_worth_investments_chart: Net Worth and Investments Over Time as a line chart
+                    - show_home_equity_chart: Home Equity Over Time as a line chart
+                    - show_retirement_age_distribution: Since this run simulation is a monte carlo simulation, it plots the retirement from each trace as a histogram
+                    - show_budget_breakdown: Monthly Budget Breakdown as a pie chart, including yearly and weekly budget items
+                    - show_investment_allocation: Investment Allocation as a pie chart
+                    - show_savings_rate_chart: Savings Rate Over Time as a line chart
+                    - show_fire_progress_chart: % of FIRE Number Over Time as a line chart
+                    - show_net_worth_comparison: Net Worth Comparison between the original and the scenario as a line chart
+                    - show_retirement_age_comparison: Retirement Age Distribution Comparison between the original and the scenario as a histogram
+                    - show_investment_growth_comparison: Investment Growth Comparison between the original and the scenario as a line chart
+                    - show_budget_comparison: Budget Comparison between the original and the scenario as a bar chart
+                    - show_savings_rate_comparison: Savings Rate Comparison between the original and the scenario as a line chart
+                    - show_fire_progress_comparison: Progress to FIRE Comparison between the original and the scenario as a line chart
 
+                    
+                    Parameter Requirements:
+                    - A new home purchase requires a date (if the user gives something approximate you can set one yourself but if they don't give anything at all you need to ask for one), price, down payment (if one is not provided use 20% but communicate this assumption to the user), mortgage rate (you can assume 5% but communicate this assumption to the user), term (assume 30 years) and property tax (assume 0% but communicate this assumption to the user)
+                    - Major purchases all require a purchase date, and purchase type. If the type is cash, total_cost is required. If the purchase type is finance, then total_cost, loan_term_months, intrest_rate, and down_payment are all required. If the purchase type is lease, lease_term_months, down_payment and monthly_lease_payment are all required. 
+                    - Budget items each require a name, value and frequency
+                    - investment vehicles each require a name, annual_returns (0.1 would be 10% annual returns), a ratio (50/50 split between 2 vehicles means each would have a ratio of 0.5, remember all ratios must add up to 1 and if you change the ratio on one vehicle you need to update the other investments as well), and a distribution type. Normal distributions need a standard deviation as well
+                    - Location changes require a date, a col (cost of living) adjustment and a state. 
+                    - If the user does not provide enough information for you to do what they ask (you cannot fill out all of the required fields for a given scenario analysis without makin unpermitted assumptions), ask follow up questions until you have the information you need. 
 
-                Guidelines for Concise Responses:
-                1. Limit responses to 3-5 short sentences or bullet points.
-                2. Focus on the most impactful factors affecting the FIRE journey.
-                3. Provide one clear, actionable recommendation per response.
-                4. Use percentages and years instead of decimal numbers.
-                5. Round dollar amounts to the nearest thousand.
-                6. Avoid explanations unless explicitly requested.
+                    Guidelines for Interaction:
+                    1. Limit responses to 3-5 short sentences or bullet points and between zero and two graphs (typically zero or one).
+                    2. Focus on the most impactful factors affecting the FIRE journey.
+                    3. Provide one clear, actionable recommendation per response.
+                    4. Use percentages and years instead of decimal numbers.
+                    5. Round dollar amounts to the nearest thousand, and convert decimal times in years to months (.5 years -> 6 months).
+                    6. Avoid explanations unless explicitly requested.
+                    7. If you don't have enough information to answer a question or run a simulation, ask the user for the specific details you need.
+                    8. If the user asks about changing a parameter that's not available, inform them that it can't be adjusted in the current version.
+                    9. Always strive for maximum clarity and brevity in your responses.
+                    10. When running simulations or scenario analyses, explicitly state what type of simulation (FIRE Simulation or Scenario Analysis) you're running and what parameters you are using (including what graph types you are displaying).
 
-                Always strive for maximum clarity and brevity in your responses."""}
-        ]
+                    Remember to ask follow-up questions if you need more information to provide accurate advice or run simulations. Don't make assumptions about the user's financial situation beyond what's provided in their profile. Immediately after you use a tool, 'say I ran a simulation or I ran a scenario analysis with parameters ___, ___ and ___, and based on that...'"""}
+            ]
+    # Initialize messages in session state if not already present
     if "messages" not in st.session_state:
-        st.session_state.messages = base_message
+        st.session_state.messages = [st.session_state.base_message]
 
     if st.button("Clear Conversation"):
         clear_conversation()
-        st.session_state.messages = base_message
 
     for message in st.session_state.messages[1:]:  # Skip system message
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            st.markdown(message["content"].replace("$", "\\$"))
 
     if prompt := st.chat_input("What would you like to know about your FIRE journey?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
-            st.markdown(prompt)
+            st.markdown(prompt.replace("$", "\\$"))
 
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
 
             model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
-            full_response = generate_text(bedrock_runtime, model_id, tool_config, st.session_state.messages)
+            
+            # Format messages for generate_text
+            formatted_messages = [
+                {"role": msg["role"], "content": msg["content"]}
+                for msg in st.session_state.messages
+                if isinstance(msg, dict) and "role" in msg and "content" in msg
+            ]
+            
+            full_response = generate_text(bedrock_runtime, model_id, tool_config, formatted_messages)
 
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(full_response.replace("$", "\\$"))
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 if __name__ == "__main__":

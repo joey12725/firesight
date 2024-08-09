@@ -6,7 +6,8 @@ import json
 import pandas as pd
 import os
 import plotly.graph_objects as go
-
+from st_repeating_field_group import generate_repeating_field_group
+import numpy as np
 # DynamoDB configuration
 try:
     dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
@@ -35,78 +36,6 @@ def load_user_profile(user_id):
     if profile_json:
         return json.loads(profile_json)
     return None
-
-def generate_repeating_field_group(keys, group_id, default_values=None):
-    if f"rows_{group_id}" not in st.session_state or not st.session_state[f"rows_{group_id}"]:
-        if default_values:
-            st.session_state[f"rows_{group_id}"] = [str(i) for i in range(len(default_values))]
-        else:
-            st.session_state[f"rows_{group_id}"] = []
-
-    rows_collection = []
-
-    def add_row():
-        new_index = str(len(st.session_state[f"rows_{group_id}"]))
-        st.session_state[f"rows_{group_id}"].append(new_index)
-
-    def remove_row(row_id):
-        st.session_state[f"rows_{group_id}"].remove(str(row_id))
-
-    def generate_row(row_id, defaults=None):
-        row_container = st.container()
-        row_columns = row_container.columns((3, 1))
-        field_group = {}
-
-        for key, value in keys.items():
-            field_type = value["type"]
-            default_value = defaults.get(key, value["default"]) if defaults else value["default"]
-
-            if key == "purchase_type":
-                field_group[key] = row_columns[0].selectbox(key, options=["cash", "finance", "lease"], key=f"{key}_{row_id}_{group_id}")
-            elif field_type == int:
-                try:
-                    int_value = int(default_value) if default_value is not None else 0
-                except ValueError:
-                    int_value = 0
-                field_group[key] = row_columns[0].number_input(key, value=int_value, step=1, key=f"{key}_{row_id}_{group_id}")
-            elif field_type == float:
-                try:
-                    float_value = float(default_value) if default_value is not None else 0.0
-                except ValueError:
-                    float_value = 0.0
-                field_group[key] = row_columns[0].number_input(key, value=float_value, format="%.2f", key=f"{key}_{row_id}_{group_id}")
-            elif field_type == str:
-                field_group[key] = row_columns[0].text_input(key, value=str(default_value) if default_value is not None else "", key=f"{key}_{row_id}_{group_id}")
-            elif field_type == "choice":
-                choices = value["choices"]
-                field_group[key] = row_columns[0].selectbox(key, options=choices, index=choices.index(default_value), key=f"{key}_{row_id}_{group_id}")
-            elif field_type == "date":
-                if isinstance(default_value, str):
-                    try:
-                        date_value = datetime.date.fromisoformat(default_value)
-                    except ValueError:
-                        date_value = datetime.date.today()
-                elif isinstance(default_value, datetime.date):
-                    date_value = default_value
-                else:
-                    date_value = datetime.date.today()
-                field_group[key] = row_columns[0].date_input(key, value=date_value, key=f"{key}_{row_id}_{group_id}")
-            else:
-                raise ValueError(f"Invalid field type: {field_type}")
-
-        row_columns[1].button("🗑️", key=f"del_{row_id}_{group_id}", on_click=remove_row, args=[row_id])
-        return field_group
-
-    menu = st.columns(2)
-    with menu[0]:
-        st.button("Add Item", on_click=add_row, key=f"add_item_{group_id}")
-
-    for row_index in st.session_state[f"rows_{group_id}"]:
-        defaults = default_values[int(row_index)] if default_values and int(row_index) < len(default_values) else None
-        row_data = generate_row(row_index, defaults)
-        rows_collection.append(row_data)
-
-    return rows_collection
 
 def dict_to_user(user_data):
     user = User()
@@ -143,19 +72,25 @@ def dict_to_user(user_data):
             investment_vehicle["annual_returns"],
             investment_vehicle["standard_deviation"],
             investment_vehicle["ratio"],
-            investment_vehicle.get("distribution_type", "normal-monthly")  # Default to "normal-monthly" if not specified
+            investment_vehicle.get("distribution_type", "normal-monthly")
         )
     
-    for major_purchase in user_data.get("major_purchases", []):
+    for purchase in user_data.get("major_purchases", []):
         user.add_major_purchase(
-            major_purchase["name"],
-            major_purchase["cost"],
-            major_purchase["date"],
-            major_purchase["purchase_type"],
-            major_purchase.get("term"),
-            major_purchase.get("interest_rate"),
-            major_purchase.get("down_payment"),
-            major_purchase.get("monthly_payment")
+            item_name=purchase["item_name"],
+            purchase_date=purchase["purchase_date"],
+            total_cost=purchase["total_cost"],
+            purchase_type=purchase["purchase_type"],
+            down_payment=purchase.get("down_payment", 0),
+            loan_amount=purchase.get("loan_amount", 0),
+            interest_rate=purchase.get("interest_rate", 0),
+            loan_term_months=purchase.get("loan_term_months", 0),
+            lease_term_months=purchase.get("lease_term_months", 0),
+            monthly_lease_payment=purchase.get("monthly_lease_payment", 0),
+            buy_residual=purchase.get("buy_residual", False),
+            residual_value=purchase.get("residual_value", 0),
+            consider_in_net_worth=purchase.get("consider_in_net_worth", False),
+            asset_value_change=purchase.get("asset_value_change", 0)
         )
     
     if user_data.get("home_purchase", {}).get("price", 0) != 0:
@@ -182,7 +117,7 @@ if __name__ == "__main__":
         user_data = load_user_profile(user_id)
         if user_data:
             st.header("Scenario Analysis")
-            st.subheader("Compare your profile a version with hypothetical changes and see how it could impact your financial independence goals:")
+            st.subheader("Compare your profile with a version that has hypothetical changes and see how it could impact your financial independence goals:")
 
             # Load existing settings but allow modifications for scenario analysis
             income = st.number_input("Income", value=user_data.get("income", 95000.0))
@@ -218,14 +153,95 @@ if __name__ == "__main__":
             }
 
             major_purchase_keys = {
-                "name": {"type": str, "default": ""},
-                "cost": {"type": float, "default": 0.0},
-                "date": {"type": "date", "default": datetime.date.today()},
-                "purchase_type": {"type": str, "default": "cash"},
-                "term": {"type": int, "default": 0},
-                "interest_rate": {"type": float, "default": 0.0},
-                "down_payment": {"type": float, "default": 0.0},
-                "monthly_payment": {"type": float, "default": 0.0}
+                "item_name": {"type": str, "default": ""},
+                "purchase_date": {"type": "date", "default": datetime.date.today()},
+                "total_cost": {"type": float, "default": 0.0},
+                "purchase_type": {"type": "choice", "choices": ["cash", "finance", "lease"], "default": "cash"},
+                "down_payment": {
+                    "type": float,
+                    "default": 0.0,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type"},
+                        "func": lambda purchase_type: purchase_type in ["finance", "lease"]
+                    }
+                },
+                "loan_amount": {
+                    "type": float,
+                    "default": 0.0,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type"},
+                        "func": lambda purchase_type: purchase_type == "finance"
+                    }
+                },
+                "interest_rate": {
+                    "type": float,
+                    "default": 0.0,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type"},
+                        "func": lambda purchase_type: purchase_type == "finance"
+                    }
+                },
+                "loan_term_months": {
+                    "type": int,
+                    "default": 36,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type"},
+                        "func": lambda purchase_type: purchase_type == "finance"
+                    }
+                },
+                "lease_term_months": {
+                    "type": int,
+                    "default": 36,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type"},
+                        "func": lambda purchase_type: purchase_type == "lease"
+                    }
+                },
+                "monthly_lease_payment": {
+                    "type": float,
+                    "default": 0.0,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type"},
+                        "func": lambda purchase_type: purchase_type == "lease"
+                    }
+                },
+                "buy_residual": {
+                    "type": "checkbox",
+                    "default": False,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type"},
+                        "func": lambda purchase_type: purchase_type == "lease"
+                    }
+                },
+                "residual_value": {
+                    "type": float,
+                    "default": 0.0,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type", "buy_residual": "buy_residual"},
+                        "func": lambda purchase_type, buy_residual: purchase_type == "lease" and buy_residual
+                    }
+                },
+                "consider_in_net_worth": {
+                    "type": "checkbox",
+                    "default": False,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type", "buy_residual": "buy_residual"},
+                        "func": lambda purchase_type, buy_residual: purchase_type in ["cash", "finance"] or (purchase_type == "lease" and buy_residual)
+                    }
+                },
+                "asset_value_change": {
+                    "type": "slider",
+                    "default": 0,
+                    "min": -20,
+                    "max": 20,
+                    "step": 0.5,
+                    "only_show_if": {
+                        "kwargs": {"purchase_type": "purchase_type", "buy_residual": "buy_residual", "consider_in_net_worth": "consider_in_net_worth"},
+                        "func": lambda purchase_type, buy_residual, consider_in_net_worth: 
+                            (purchase_type in ["cash", "finance"] and consider_in_net_worth) or 
+                            (purchase_type == "lease" and buy_residual and consider_in_net_worth)
+                    }
+                }
             }
 
             st.subheader("Budget Items")
@@ -236,21 +252,20 @@ if __name__ == "__main__":
 
             st.subheader("Major Expenses")
             major_purchases = generate_repeating_field_group(major_purchase_keys, "major_purchase", user_data.get("major_purchases", []))
-
             home_purchase_enabled = "home_purchase_enabled" in st.session_state or user_data.get("home_purchase", {}).get("price", 0) != 0
             home_purchase = st.checkbox("Plan to Purchase a Home", value=home_purchase_enabled, key="home_purchase_enabled")
             if home_purchase:
                 st.subheader("Home Purchase Details")
                 home_purchase_data = user_data.get("home_purchase", {})
                 home_purchase_date_default = "2025-01-01"
-                home_purchase_date_str = str(home_purchase_data.get("date", home_purchase_date_default))  # Ensure it's a string
+                home_purchase_date_str = str(home_purchase_data.get("date", home_purchase_date_default))
                 if home_purchase_date_str:
                     try:
                         home_purchase_date_value = datetime.date.fromisoformat(home_purchase_date_str)
                     except ValueError:
-                        home_purchase_date_value = datetime.date.fromisoformat(home_purchase_date_default)  # Fallback to default if conversion fails
+                        home_purchase_date_value = datetime.date.fromisoformat(home_purchase_date_default)
                 else:
-                    home_purchase_date_value = datetime.date(2025, 1, 1)  # Fallback if string is empty or null
+                    home_purchase_date_value = datetime.date(2025, 1, 1)
 
                 home_purchase_date = st.date_input("Home Purchase Date", value=home_purchase_date_value, min_value=datetime.date.today())
                 home_purchase_price = st.number_input("Home Purchase Price", min_value=0.0, value=home_purchase_data.get("price", 300000.0), step=10000.0)
@@ -266,12 +281,12 @@ if __name__ == "__main__":
                 st.subheader("Location Change Details")
                 location_change_data = user_data.get("location_change", {})
                 location_change_date_default = "2025-01-01"
-                location_change_date_str = str(location_change_data.get("date", location_change_date_default))  # Convert to string to be safe
+                location_change_date_str = str(location_change_data.get("date", location_change_date_default))
 
                 try:
                     location_change_date_value = datetime.date.fromisoformat(location_change_date_str)
                 except ValueError:
-                    location_change_date_value = datetime.date.fromisoformat(location_change_date_default)  # Fallback to default if the format is incorrect
+                    location_change_date_value = datetime.date.fromisoformat(location_change_date_default)
 
                 location_change_date = st.date_input("Location Change Date", value=location_change_date_value, min_value=datetime.date.today())
                 location_change_moving_cost = st.number_input("Moving Cost", min_value=0.0, value=location_change_data.get("moving_cost", 5000.0), step=1000.0)
@@ -311,14 +326,20 @@ if __name__ == "__main__":
                     ],                   
                     "major_purchases": [
                         {
-                            "name": purchase["name"],
-                            "cost": purchase["cost"],
-                            "date": str(purchase["date"]),
+                            "item_name": purchase["item_name"],
+                            "purchase_date": str(purchase["purchase_date"]),
+                            "total_cost": purchase["total_cost"],
                             "purchase_type": purchase["purchase_type"],
-                            "term": purchase["term"] if purchase["purchase_type"] in ["finance", "lease"] else None,
-                            "interest_rate": purchase["interest_rate"] if purchase["purchase_type"] == "finance" else None,
-                            "down_payment": purchase["down_payment"] if purchase["purchase_type"] in ["finance", "lease"] else None,
-                            "monthly_payment": purchase["monthly_payment"] if purchase["purchase_type"] in ["finance", "lease"] else None
+                            "down_payment": purchase.get("down_payment", 0),
+                            "loan_amount": purchase.get("loan_amount", 0),
+                            "interest_rate": purchase.get("interest_rate", 0),
+                            "loan_term_months": purchase.get("loan_term_months", 0),
+                            "lease_term_months": purchase.get("lease_term_months", 0),
+                            "monthly_lease_payment": purchase.get("monthly_lease_payment", 0),
+                            "buy_residual": purchase.get("buy_residual", False),
+                            "residual_value": purchase.get("residual_value", 0),
+                            "consider_in_net_worth": purchase.get("consider_in_net_worth", False),
+                            "asset_value_change": purchase.get("asset_value_change", 0)
                         } for purchase in major_purchases
                     ],
                     "home_purchase": {
@@ -338,7 +359,7 @@ if __name__ == "__main__":
                     },
                     "simulate_years": user_data.get("simulate_years", 10),
                     "num_simulations": user_data.get("num_simulations", 10),
-                    "income_growth": user_data.get("income_growth", 0.03)
+                    "income_growth": income_growth
                 }
 
                 # Run original simulation
@@ -354,23 +375,94 @@ if __name__ == "__main__":
 
                 st.title(f"In this new scenario, you would be able to retire {int(abs(retirement_age_change_years))} years, {int(abs(retirement_age_change_months))} months, {int(abs(retirement_age_change_days))} days {'earlier' if retirement_age_change_years < 0 else 'later'}.")
 
-                # Display comparison charts using Plotly
-                st.subheader("Comparison of Projected Net Worth and Investments")
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=ts_df_original["month"], y=ts_df_original["net_worth"], mode='lines', name='Original Net Worth'))
-                fig.add_trace(go.Scatter(x=ts_df_new["month"], y=ts_df_new["net_worth"], mode='lines', name='New Net Worth'))
-                fig.add_trace(go.Scatter(x=ts_df_original["month"], y=ts_df_original["investments"], mode='lines', name='Original Investments'))
-                fig.add_trace(go.Scatter(x=ts_df_new["month"], y=ts_df_new["investments"], mode='lines', name='New Investments'))
-                fig.update_layout(title='Comparison of Net Worth and Investments', xaxis_title='Month', yaxis_title='Amount ($)')
-                st.plotly_chart(fig)
+                def create_scenario_comparison_net_worth_chart(ts_df_original, ts_df_new, original_user, new_user):
+                    def prepare_data(ts_df, user, scenario):
+                        data = {
+                            'Year': ts_df['month'] // 12,
+                            f'{scenario} Home Equity': ts_df['home_equity'],
+                            f'{scenario} Emergency Fund': ts_df['emergency_fund'],
+                        }
+                        
+                        for vehicle in user.investment_vehicles:
+                            data[f'{scenario} Investment: {vehicle.name}'] = ts_df['investments'] * vehicle.ratio
+                        
+                        for purchase in user.major_purchases:
+                            if purchase.consider_in_net_worth:
+                                data[f'{scenario} Major Purchase: {purchase.item_name}'] = ts_df[f'major_purchase_{purchase.item_name}_value']
+                        
+                        return pd.DataFrame(data)
 
+                    df_original = prepare_data(ts_df_original, original_user, 'Original')
+                    df_new = prepare_data(ts_df_new, new_user, 'New')
+
+                    # Merge dataframes
+                    df = pd.merge(df_original, df_new, on='Year', suffixes=('_original', '_new'))
+                    
+                    # Create stacked bar chart
+                    fig = go.Figure()
+                    
+                    bar_width = 0.35
+                    
+                    for column in df.columns:
+                        if column != 'Year':
+                            if column.startswith('Original'):
+                                fig.add_trace(go.Bar(
+                                    x=df['Year'] - bar_width/2,
+                                    y=df[column],
+                                    name=column,
+                                    hoverinfo='name+y',
+                                    width=bar_width,
+                                    hovertemplate='%{y:,.0f}'
+                                ))
+                            elif column.startswith('New'):
+                                fig.add_trace(go.Bar(
+                                    x=df['Year'] + bar_width/2,
+                                    y=df[column],
+                                    name=column,
+                                    hoverinfo='name+y',
+                                    width=bar_width,
+                                    hovertemplate='%{y:,.0f}'
+                                ))
+                    
+                    fig.update_layout(
+                        title='Net Worth Composition Comparison: Original vs New Scenario',
+                        xaxis_title='Year',
+                        yaxis_title='Amount (in $100s)',
+                        barmode='stack',
+                        legend_title='Components',
+                        hovermode='x unified'
+                    )
+                    
+                    # Update y-axis with scaled tickformat
+                    fig.update_yaxes(
+                        tickformat=',.0f',
+                        tickprefix='$',
+                        ticksuffix='',
+                        title_text='Amount ($)',
+                    )
+                    max_y = 0
+                    for column in df.columns:
+                        if column != 'Year':
+                            max_y = max(max_y, df[column].sum())
+                    tick_vals = np.linspace(0, max_y)  # Create 6 evenly spaced tick values
+                    fig.update_yaxes(
+                    tickformat=',d',
+                    tickvals=tick_vals,
+                    ticktext=[f'{x/100:,.0f}' for x in tick_vals],
+)
+                    return fig
+                # In the scenario analysis part of your Streamlit app:
+                st.subheader("Net Worth Composition Comparison")
+                scenario_comparison_chart = create_scenario_comparison_net_worth_chart(ts_df_original, ts_df_new, original_user, new_user)
+                st.plotly_chart(scenario_comparison_chart)
+                
                 if original_user.owns_home or new_user.owns_home:
                     st.subheader("Comparison of Home Equity")
                     fig = go.Figure()
                     if original_user.owns_home:
-                        fig.add_trace(go.Scatter(x=ts_df_original["month"], y=ts_df_original["home_equity_value_with_growth"], mode='lines', name='Original Home Equity'))
+                        fig.add_trace(go.Scatter(x=ts_df_original["month"], y=ts_df_original["home_equity"], mode='lines', name='Original Home Equity'))
                     if new_user.owns_home:
-                        fig.add_trace(go.Scatter(x=ts_df_new["month"], y=ts_df_new["home_equity_value_with_growth"], mode='lines', name='New Home Equity'))
+                        fig.add_trace(go.Scatter(x=ts_df_new["month"], y=ts_df_new["home_equity"], mode='lines', name='New Home Equity'))
                     fig.update_layout(title='Comparison of Home Equity', xaxis_title='Month', yaxis_title='Home Equity ($)')
                     st.plotly_chart(fig)
 

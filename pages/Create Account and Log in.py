@@ -8,6 +8,7 @@ import hashlib
 dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
 table = dynamodb.Table('firesight-users')
 
+st.set_page_config(page_title="FIRE Calculator - Login", page_icon="🔒")
 # Helper functions
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()

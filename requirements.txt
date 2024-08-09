@@ -3,3 +3,4 @@ pandas
 numpy
 boto3
 plotly==5.11.0
+st-repeating-field-group
