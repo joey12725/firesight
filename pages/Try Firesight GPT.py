@@ -389,7 +389,7 @@ def scenario_analysis_gpt(changes):
     net_worth_change = (ts_df_new['net_worth'].iloc[-1] / ts_df_original['net_worth'].iloc[-1] - 1) * 100
 
     if retirement_ages_original is not None and retirement_ages_new is not None:
-        all_simulations_reached_retirement = all([int(age if age is not None else 0) > 18 for age in retirement_ages_new]) and all([int(age if age is not None else 0) > 18 for age in retirement_ages_original])
+        all_simulations_reached_retirement = all([int(age if age is not None else 0) > 18 for age in retirement_ages_new]) and all([int(age if age is not None else 0) > 18 for age in retirement_ages_original]) and all([age != original_user_data["age"] for age in retirement_ages_new]) and all([age != original_user_data["age"] for age in retirement_ages_original + retirement_ages_new])
     else:
         all_simulations_reached_retirement = False
 
@@ -443,7 +443,7 @@ def scenario_analysis_gpt(changes):
     """
 
     if not all_simulations_reached_retirement:
-        st.warning(f"Out of the {original_user_data['num_simulations']} simulations, {original_user_data['num_simulations'] - len([x for x in retirement_ages_original if x])} did not reach retirement age in the original scenario, and {new_user_data['num_simulations'] - len([x for x in retirement_ages_new if x])} did not reach retirement age in the new scenario.")
+        st.warning(f"Out of the {original_user_data['num_simulations']} simulations, {original_user_data['num_simulations'] - len([x for x in retirement_ages_original if x]) - len([x for x in retirement_ages_original if x != original_user_data['age']])} did not reach retirement age in the original scenario and {new_user_data['num_simulations'] - len([x for x in retirement_ages_new if x]) - len([x for x in retirement_ages_new if x != original_user_data['age']])} did not reach retirement age in the new scenario.")
         result = f"# ERROR: Not all simulations reached retirement age. Inform the user that they need to increase their simulation years to get accurate results."
 
     if any(changes.get(f"show_{chart}", False) for chart in ["net_worth_comparison", "retirement_age_comparison", "investment_growth_comparison", "budget_comparison", "savings_rate_comparison", "fire_progress_comparison"]):
