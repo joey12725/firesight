@@ -460,7 +460,13 @@ class User:
                 del self.budget["mortgage"]
 
         return self.owns_home
-
+    
+    def calculate_net_worth(self):
+        net_worth = self.investments + self.emergency_fund_current + self.home_equity
+        for purchase in self.major_purchases:
+            net_worth += purchase.get_net_worth_impact()
+        return net_worth
+    
     def step_month(self):
         self.month += 1
         self.time += timedelta(days=30.44)
@@ -706,8 +712,8 @@ def run_simulation_local(user_data):
             consider_in_net_worth=purchase.get("consider_in_net_worth", False),
             asset_value_change=purchase.get("asset_value_change", 0)
         )
-
-    if user_data.get("home_purchase", {}).get("price", 0) != 0:
+    user_home = user_data.get("home_purchase", {}) if user_data.get("home_purchase", {}) else {}
+    if user_home.get("price", 0) != 0:
         user.home_purchase_date = user_data["home_purchase"]["date"]
         user.home_purchase_price = user_data["home_purchase"]["price"]
         user.down_payment = user_data["home_purchase"]["down_payment"]
@@ -715,8 +721,8 @@ def run_simulation_local(user_data):
         user.mortgage_term_years = user_data["home_purchase"]["mortgage_term_years"]
         user.pay_off_mortgage_before_retirement = user_data["home_purchase"].get("pay_off_before_retirement", False)
         user.property_tax = user_data["home_purchase"]["property_tax"]
-    
-    if user_data.get("location_change", {}).get("date", None):
+    user_lc = user_data.get("location_change", {}) if user_data.get("location_change", {}) else {}
+    if user_lc.get("date", None):
         user.location_change = True
         user.location_change_date = user_data["location_change"]["date"]
         user.location_change_moving_costs = user_data["location_change"]["moving_cost"]
