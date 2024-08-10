@@ -46,9 +46,9 @@ with col1:
     st.subheader("Illuminate Your Path to Financial Independence")
 
 with col2:
-    lottie_url = "https://assets5.lottiefiles.com/packages/lf20_V9t630.json"
+    lottie_url = "https://lottie.host/50664d6f-1780-4c56-b29c-0576fc37a30a/BnsjF5Efz4.json"
     lottie_json = load_lottieurl(lottie_url)
-    st_lottie(lottie_json, height=200, key="header_animation")
+    st_lottie(lottie_json, height=150, key="header_animation")
 
 st.markdown("---")
 
@@ -109,51 +109,57 @@ with col3:
     """)
 
 st.markdown("---")
-
+col1, col2 = st.columns(2)
 # How FIRESight Works
-st.header("How FIRESight Works")
-st.write("""
-FIRESight employs a sophisticated, multi-step process to help you plan and achieve your FIRE goals:
+with col1:
+    lottie_url = "https://lottie.host/e1337b35-cba8-4685-8e88-a2764a4114e8/6fP1YsKkYt.json"
+    lottie_json = load_lottieurl(lottie_url)
+    st_lottie(lottie_json, height=1200, key="how_it_works_animation")
 
-1. **Comprehensive Data Input**: 
-   - Enter detailed information about your income, expenses, savings, and current investments.
-   - Input your risk tolerance, retirement goals, and lifestyle preferences.
-   - Add planned major life events or purchases that could impact your financial journey.
+with col2:
+    st.header("How FIRESight Works")
+    st.write("""
+    FIRESight employs a sophisticated, multi-step process to help you plan and achieve your FIRE goals:
 
-2. **Advanced Financial Modeling**:
-   - Our algorithms create a digital twin of your financial life, incorporating all aspects of your current and projected future situation.
-   - We use machine learning models trained on vast amounts of historical financial data to project future market scenarios.
+    1. **Comprehensive Data Input**: 
+    - Enter detailed information about your income, expenses, savings, and current investments.
+    - Input your risk tolerance, retirement goals, and lifestyle preferences.
+    - Add planned major life events or purchases that could impact your financial journey.
 
-3. **Monte Carlo Simulations**:
-   - FIRESight runs thousands of simulations, each representing a possible future financial scenario.
-   - These simulations account for market volatility, inflation, and the specific dynamics of different asset classes.
+    2. **Advanced Financial Modeling**:
+    - Our algorithms create a digital twin of your financial life, incorporating all aspects of your current and projected future situation.
+    - We use machine learning models trained on vast amounts of historical financial data to project future market scenarios.
 
-4. **Tax Optimization**:
-   - The system models various tax scenarios, including current tax laws and projected changes.
-   - It suggests optimal strategies for tax-advantaged accounts and withdrawal sequences in retirement.
+    3. **Monte Carlo Simulations**:
+    - FIRESight runs thousands of simulations, each representing a possible future financial scenario.
+    - These simulations account for market volatility, inflation, and the specific dynamics of different asset classes.
 
-5. **Risk Analysis**:
-   - FIRESight assesses the probability of achieving your FIRE goals under different risk profiles.
-   - It provides clear visualizations of best-case, worst-case, and most likely scenarios.
+    4. **Tax Optimization**:
+    - The system models various tax scenarios, including current tax laws and projected changes.
+    - It suggests optimal strategies for tax-advantaged accounts and withdrawal sequences in retirement.
 
-6. **AI-Powered Insights**:
-   - Our AI analyzes your results and compares them to successful FIRE strategies to generate personalized recommendations.
-   - The system identifies potential weaknesses in your plan and suggests specific improvements.
+    5. **Risk Analysis**:
+    - FIRESight assesses the probability of achieving your FIRE goals under different risk profiles.
+    - It provides clear visualizations of best-case, worst-case, and most likely scenarios.
 
-7. **Interactive Results Dashboard**:
-   - Explore your results through an intuitive, interactive dashboard.
-   - Visualize your projected net worth, investment growth, and withdrawal strategies.
+    6. **AI-Powered Insights**:
+    - Our AI analyzes your results and compares them to successful FIRE strategies to generate personalized recommendations.
+    - The system identifies potential weaknesses in your plan and suggests specific improvements.
 
-8. **Scenario Planning**:
-   - Use the platform to model "what-if" scenarios, such as career changes, market downturns, or unexpected windfalls.
-   - Compare different strategies side-by-side to make informed decisions.
+    7. **Interactive Results Dashboard**:
+    - Explore your results through an intuitive, interactive dashboard.
+    - Visualize your projected net worth, investment growth, and withdrawal strategies.
 
-9. **Ongoing Optimization**:
-   - Regularly update your information to refine projections and adjust your strategy.
-   - Receive alerts and suggestions when new opportunities for optimization arise.
+    8. **Scenario Planning**:
+    - Use the platform to model "what-if" scenarios, such as career changes, market downturns, or unexpected windfalls.
+    - Compare different strategies side-by-side to make informed decisions.
 
-By combining cutting-edge technology with comprehensive financial planning principles, FIRESight provides a robust, dynamic tool for anyone serious about achieving financial independence and retiring early.
-""")
+    9. **Ongoing Optimization**:
+    - Regularly update your information to refine projections and adjust your strategy.
+    - Receive alerts and suggestions when new opportunities for optimization arise.
+
+    By combining cutting-edge technology with comprehensive financial planning principles, FIRESight provides a robust, dynamic tool for anyone serious about achieving financial independence and retiring early.
+    """)
 
 st.markdown("---")
 
@@ -221,8 +227,7 @@ with col2:
     
     Don't leave your financial future to chance. Let FIRESight illuminate the path to your early retirement and financial freedom.
     """)
-    if st.button("Get Started with FIRESight"):
-        st.write("Redirecting to account creation page...")
+    st.page_link("pages/Create Account and Log in.py", label="Get Started", icon="🔥") 
 
 st.markdown("---")
 

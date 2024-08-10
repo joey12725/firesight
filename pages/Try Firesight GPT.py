@@ -526,7 +526,7 @@ def scenario_analysis_gpt(changes):
 
 def generate_text(bedrock_client, model_id, tool_config, messages):
     thread = []
-    system_message = st.session_state.messages[0][0] if "messages" in st.session_state else []  # Assume the first message is always the system message
+    system_message = st.session_state.messages[0] if "messages" in st.session_state else []  # Assume the first message is always the system message
 
     for message in messages:
         if isinstance(message, dict) and "role" in message and "content" in message:
@@ -688,11 +688,11 @@ def main():
                     9. Always strive for maximum clarity and brevity in your responses.
                     10. When running simulations or scenario analyses, explicitly state what type of simulation (FIRE Simulation or Scenario Analysis) you're running and what parameters you are using (including what graph types you are displaying).
 
-                    Remember to ask follow-up questions if you need more information to provide accurate advice or run simulations. Don't make assumptions about the user's financial situation beyond what's provided in their profile. Immediately after you use a tool, 'say I ran a simulation or I ran a scenario analysis with parameters ___, ___ and ___, and based on that...'"""}
+                    Remember to ask follow-up questions if you need more information to provide accurate advice or run simulations. Don't make assumptions about the user's financial situation beyond what's provided in their profile. Use the provided functions as needed to run simulations and scenario analyses, but do not provide numbers without using these functions."""}
             ]
     # Initialize messages in session state if not already present
     if "messages" not in st.session_state:
-        st.session_state.messages = [st.session_state.base_message]
+        st.session_state.messages = st.session_state.base_message
 
     if st.button("Clear Conversation"):
         clear_conversation()
