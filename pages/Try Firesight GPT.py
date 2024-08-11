@@ -526,8 +526,14 @@ def scenario_analysis_gpt(changes):
 
 def generate_text(bedrock_client, model_id, tool_config, messages):
     thread = []
-    system_message = st.session_state.messages[0][0] if "messages" in st.session_state else []  # Assume the first message is always the system message
-
+    try:
+        system_message = st.session_state.messages[0][0] if "messages" in st.session_state else []  # Assume the first message is always the system message
+    except IndexError:
+        try:
+            system_message = st.session_state.messages[0]
+        except IndexError:
+            system_message = None
+            st.warning("No system message found in the conversation.")
     for message in messages:
         if isinstance(message, dict) and "role" in message and "content" in message:
             if message["role"] == "system":
