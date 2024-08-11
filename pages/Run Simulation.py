@@ -49,7 +49,8 @@ def display_results(user_data):
 
     bottom_range = round(average_retirement_age - stdev_retirement_age, 1)
     top_range = round(average_retirement_age + stdev_retirement_age, 1)
-    st.title(f"Your Estimated Age To Reach Your FIRE Number of {int(round((user_data["post_retirement_expenses"] - user_data["average_post_retirement_income"])/user.retirement_income_ratio, -4))} is between :orange[{round(bottom_range)}] and :orange[{round(top_range)}] years old")
+    fire_number = int(round((user_data["post_retirement_expenses"] - user_data["average_post_retirement_income"])/user.retirement_income_ratio, -4))
+    st.title(f"Your Estimated Age To Reach Your FIRE Number of {fire_number} is between :orange[{round(bottom_range)}] and :orange[{round(top_range)}] years old")
     st.title(f"We ran {num_simulations} simulations of {simulate_years} years. Here are the results:")
 
     # Retirement age distribution
@@ -154,7 +155,7 @@ def display_results(user_data):
     st.subheader("Net Worth Composition Over Time")
     net_worth_chart = create_stacked_net_worth_chart(ts_df, user)
     st.plotly_chart(net_worth_chart)
-    
+
     if user.home_purchase_date is not None:
         st.subheader("Your Average Home Equity")
         df_home_equity = ts_df[["home_equity_value_with_growth", "month"]]

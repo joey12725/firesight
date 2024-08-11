@@ -9,9 +9,9 @@ import plotly.graph_objects as go
 import plotly.express as px
 from st_repeating_field_group import generate_repeating_field_group
 import numpy as np
-
+ 
 # DynamoDB configuration
-try:
+try: 
     dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
     table = dynamodb.Table('firesight-users')
 except:
