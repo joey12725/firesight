@@ -257,7 +257,7 @@ def main():
     st.caption("💡 Consider the long-term impact of major purchases on your FIRE timeline.")
 
     st.subheader("Home Ownership")
-    home_purchase = st.checkbox("Plan to Purchase a Home", value=user_data.get("home_purchase", {}).get("price", 0) != 0)
+    home_purchase = st.checkbox("Plan to Purchase a Home", value=user_data.get("home_purchase", None) is not None)
     if home_purchase:
         home_purchase_data = user_data.get("home_purchase", {})
         col1, col2 = st.columns(2)
@@ -271,9 +271,23 @@ def main():
             home_purchase_price = st.number_input("Home Purchase Price", min_value=0.0, value=home_purchase_data.get("price", 300000.0), step=10000.0, format="%0.2f")
             down_payment = st.number_input("Down Payment", min_value=0.0, value=home_purchase_data.get("down_payment", 60000.0), step=1000.0, format="%0.2f")
         with col2:
-            mortgage_rate = st.slider("Mortgage Rate (%)", min_value=0.0, max_value=10.0, value=home_purchase_data.get("mortgage_rate", 4.0)*100, step=0.1, format="%0.1f")
-            mortgage_term_years = st.slider("Mortgage Term (Years)", min_value=10, max_value=30, value=home_purchase_data.get("mortgage_term_years", 30), step=1)
-            property_tax = st.slider("Property Tax Rate (%)", min_value=0.0, max_value=5.0, value=home_purchase_data.get("property_tax", 2.0)*100, step=0.1, format="%0.1f")
+            if home_purchase_data is not None:
+                if home_purchase_data.get("mortgage_rate"):
+                    mortgage_rate = st.slider("Mortgage Rate (%)", min_value=0.0, max_value=10.0, value=home_purchase_data.get("mortgage_rate", 4.0)*100, step=0.1, format="%0.1f")
+                else:
+                    mortgage_rate = st.slider("Mortgage Rate (%)", min_value=0.0, max_value=10.0, value=4.0, step=0.1, format="%0.1f")
+                if home_purchase_data.get("mortgage_term_years"):
+                    mortgage_term_years = st.slider("Mortgage Term (Years)", min_value=10, max_value=30, value=home_purchase_data.get("mortgage_term_years", 30), step=1)
+                else:
+                    mortgage_term_years = st.slider("Mortgage Term (Years)", min_value=10, max_value=30, value=30, step=1)
+                if home_purchase_data.get("property_tax"):
+                    property_tax = st.slider("Property Tax Rate (%)", min_value=0.0, max_value=5.0, value=home_purchase_data.get("property_tax", 2.0)*100, step=0.1, format="%0.1f")
+                else:
+                    property_tax = st.slider("Property Tax Rate (%)", min_value=0.0, max_value=5.0, value=2.0, step=0.1, format="%0.1f")
+            else:
+                mortgage_rate = st.slider("Mortgage Rate (%)", min_value=0.0, max_value=10.0, value=4.0, step=0.1, format="%0.1f")
+                mortgage_term_years = st.slider("Mortgage Term (Years)", min_value=10, max_value=30, value=30, step=1)
+                property_tax = st.slider("Property Tax Rate (%)", min_value=0.0, max_value=5.0, value=2.0, step=0.1, format="%0.1f")
         pay_off_mortgage_before_retirement = st.checkbox("Pay Off Mortgage Before Retirement", value=home_purchase_data.get("pay_off_before_retirement", False))
         st.caption("💡 Homeownership can be a significant factor in your FIRE journey. Consider the long-term costs and benefits.")
     st.subheader("Location Change")

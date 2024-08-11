@@ -2,5 +2,7 @@ matplotlib
 pandas
 numpy
 boto3
-plotly==5.11.0
+plotly==5.23.0
 st-repeating-field-group
+streamlit==1.35.0
+streamlit-lottie
