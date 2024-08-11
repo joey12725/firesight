@@ -3,7 +3,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 import uuid
 import hashlib
-
+import re
 # DynamoDB configuration
 dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
 table = dynamodb.Table('firesight-users')
@@ -14,6 +14,7 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def create_user(email, password, subscription_status, profile):
+    email = email.lower()
     user_id = str(uuid.uuid4())
     hashed_password = hash_password(password)
     table.put_item(
@@ -28,6 +29,7 @@ def create_user(email, password, subscription_status, profile):
     return user_id
 
 def get_user(email, password):
+    email = email.lower()
     hashed_password = hash_password(password)
     response = table.query(
         IndexName='email-index',
@@ -66,11 +68,23 @@ if not st.session_state['logged_in']:
     new_password = st.text_input('New Password', type='password')
     beta_code = st.text_input('Beta Code')
     if st.button('Create Account'):
-        if beta_code == 'friends-and-family':
-            user_id = create_user(new_email, new_password, True, '{}')
-            st.success(f'Account created successfully. Your user ID is {user_id}. Please login.')
+        #check if user already exists
+        user = get_user(new_email, new_password)
+        if user:
+            st.error('User already exists')
+        elif not new_email or not new_password:
+            st.error('Email and password are required')
+        elif not beta_code:
+            st.error('Beta code is required')
+        #regex check email
+        elif not re.match(r"[^@]+@[^@]+\.[^@]+", new_email):
+            st.error('Invalid email')
         else:
-            st.error('Invalid beta code')
+            if beta_code == 'friends-and-family':
+                user_id = create_user(new_email, new_password, True, '{}')
+                st.success(f'Account created successfully. Your user ID is {user_id}. Please login.')
+            else:
+                st.error('Invalid beta code')
 else:
     st.header('Welcome!')
     st.write('You are logged in.')
