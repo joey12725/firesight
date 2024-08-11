@@ -82,7 +82,9 @@ if not st.session_state['logged_in']:
         else:
             if beta_code == 'friends-and-family':
                 user_id = create_user(new_email, new_password, True, '{}')
-                st.success(f'Account created successfully. Your user ID is {user_id}. Please login.')
+                st.success(f'Account created successfully. You are now logged in.')
+                st.session_state['logged_in'] = True
+                st.session_state['user_id'] = user_id
             else:
                 st.error('Invalid beta code')
 else:
