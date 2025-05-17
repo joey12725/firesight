@@ -994,16 +994,24 @@ class User:
         return tax
 
     def calculate_state_tax(self, income):
+        """Progressively calculate state tax based on income brackets."""
         if self.custom_tax_brackets:
             return 0
-        if self.state_tax_data and self.state_tax_data['income_tax']!='none':
-            tax=0
+        if self.state_tax_data and self.state_tax_data['income_tax'] != 'none':
+            tax = 0
             taxable_income = income
+            prev_limit = 0
             for bracket in self.state_tax_data['income_tax']:
-                bracket_limit = bracket['bracket']
-                rate = bracket['rate']/100
-                if taxable_income> bracket_limit:
-                    tax += (taxable_income - bracket_limit)* rate
+                limit = bracket['bracket']
+                rate = bracket['rate'] / 100
+                bracket_size = limit - prev_limit
+                if taxable_income > bracket_size:
+                    tax += bracket_size * rate
+                    taxable_income -= bracket_size
+                    prev_limit = limit
+                else:
+                    tax += taxable_income * rate
+                    break
             return tax
         return 0
 
@@ -1261,12 +1269,12 @@ class User:
             self.vehicle_balances[v.name]+= share
         self.investment_balance= sum(self.vehicle_balances.values())
 
-    def record_monthly_data(self):
+    def record_monthly_data(self, income, expenses):
         row = {
             'month': self.month,
             'age': self.age,
-            'income': self.calculate_monthly_income(),
-            'expenses': self.calculate_monthly_expenses(),
+            'income': income,
+            'expenses': expenses,
             'taxes': None,  # annual lumpsum
             'cash': self.cash,
             'investment_balance': self.investment_balance,
@@ -1437,7 +1445,7 @@ class User:
 
         self.net_worth= self.calculate_net_worth()
 
-        self.record_monthly_data()
+        self.record_monthly_data(inc, exp)
 
         if not self.is_retired:
             if self.check_retirement():
