@@ -1,460 +1,568 @@
 {
-    "states": [
-      {
-        "name": "Alabama",
-        "income_tax": [
-          {"rate": 2.00, "bracket": 0},
-          {"rate": 4.00, "bracket": 500},
-          {"rate": 5.00, "bracket": 3000}
-        ],
-        "property_tax": 6.55
-      },
-      {
-        "name": "Alaska",
-        "income_tax": "none",
-        "property_tax": 10.45
-      },
-      {
-        "name": "Arizona",
-        "income_tax": [
-          {"rate": 2.50, "bracket": 0}
-        ],
-        "property_tax": 6.44
-      },
-      {
-        "name": "Arkansas",
-        "income_tax": [
-          {"rate": 2.00, "bracket": 0},
-          {"rate": 4.00, "bracket": 4400},
-          {"rate": 4.40, "bracket": 8800}
-        ],
-        "property_tax": 6.35
-      },
-      {
-        "name": "California",
-        "income_tax": [
-          {"rate": 1.00, "bracket": 0},
-          {"rate": 2.00, "bracket": 10412},
-          {"rate": 4.00, "bracket": 24684},
-          {"rate": 6.00, "bracket": 38959},
-          {"rate": 8.00, "bracket": 54081},
-          {"rate": 9.30, "bracket": 68350},
-          {"rate": 10.30, "bracket": 349137},
-          {"rate": 11.30, "bracket": 418961},
-          {"rate": 12.30, "bracket": 698271},
-          {"rate": 13.30, "bracket": 1000000}
-        ],
-        "property_tax": 7.56
-      },
-      {
-        "name": "Colorado",
-        "income_tax": [
-          {"rate": 4.40, "bracket": 0}
-        ],
-        "property_tax": 7.20
-      },
-      {
-        "name": "Connecticut",
-        "income_tax": [
-          {"rate": 2.00, "bracket": 0},
-          {"rate": 4.50, "bracket": 10000},
-          {"rate": 5.50, "bracket": 50000},
-          {"rate": 6.00, "bracket": 100000},
-          {"rate": 6.50, "bracket": 200000},
-          {"rate": 6.90, "bracket": 250000},
-          {"rate": 6.99, "bracket": 500000}
-        ],
-        "property_tax": 5.37
-      },
-      {
-        "name": "Delaware",
-        "income_tax": [
-          {"rate": 2.20, "bracket": 2000},
-          {"rate": 3.90, "bracket": 5000},
-          {"rate": 4.80, "bracket": 10000},
-          {"rate": 5.20, "bracket": 20000},
-          {"rate": 5.55, "bracket": 25000},
-          {"rate": 6.60, "bracket": 60000}
-        ],
-        "property_tax": 5.52
-      },
-      {
-        "name": "Florida",
-        "income_tax": "none",
-        "property_tax": 8.80
-      },
-      {
-        "name": "Georgia",
-        "income_tax": [
-          {"rate": 5.49, "bracket": 0}
-        ],
-        "property_tax": 9.32
-      },
-      {
-        "name": "Hawaii",
-        "income_tax": [
-          {"rate": 1.40, "bracket": 0},
-          {"rate": 3.20, "bracket": 2400},
-          {"rate": 5.50, "bracket": 4800},
-          {"rate": 6.40, "bracket": 9600},
-          {"rate": 6.80, "bracket": 14400},
-          {"rate": 7.20, "bracket": 19200},
-          {"rate": 7.60, "bracket": 24000},
-          {"rate": 7.90, "bracket": 36000},
-          {"rate": 8.25, "bracket": 48000},
-          {"rate": 9.00, "bracket": 150000},
-          {"rate": 10.00, "bracket": 175000},
-          {"rate": 11.00, "bracket": 200000}
-        ],
-        "property_tax": 3.01
-      },
-      {
-        "name": "Idaho",
-        "income_tax": [
-          {"rate": 5.80, "bracket": 4489}
-        ],
-        "property_tax": 7.45
-      },
-      {
-        "name": "Illinois",
-        "income_tax": [
-          {"rate": 4.95, "bracket": 0}
-        ],
-        "property_tax": 6.89
-      },
-      {
-        "name": "Indiana",
-        "income_tax": [
-          {"rate": 3.05, "bracket": 0}
-        ],
-        "property_tax": 8.31
-      },
-      {
-        "name": "Iowa",
-        "income_tax": [
-          {"rate": 4.40, "bracket": 0},
-          {"rate": 4.82, "bracket": 6210},
-          {"rate": 5.70, "bracket": 31050}
-        ],
-        "property_tax": 8.50
-      },
-      {
-        "name": "Kansas",
-        "income_tax": [
-          {"rate": 3.10, "bracket": 0},
-          {"rate": 5.25, "bracket": 15000},
-          {"rate": 5.70, "bracket": 30000}
-        ],
-        "property_tax": 7.65
-      },
-      {
-        "name": "Kentucky",
-        "income_tax": [
-          {"rate": 4.00, "bracket": 0}
-        ],
-        "property_tax": 8.25
-      },
-      {
-        "name": "Louisiana",
-        "income_tax": [
-          {"rate": 1.85, "bracket": 0},
-          {"rate": 3.50, "bracket": 12500},
-          {"rate": 4.25, "bracket": 50000}
-        ],
-        "property_tax": 5.05
-      },
-      {
-        "name": "Maine",
-        "income_tax": [
-          {"rate": 5.80, "bracket": 0},
-          {"rate": 6.75, "bracket": 26050},
-          {"rate": 7.15, "bracket": 61600}
-        ],
-        "property_tax": 10.27
-      },
-      {
-        "name": "Maryland",
-        "income_tax": [
-          {"rate": 2.00, "bracket": 0},
-          {"rate": 3.00, "bracket": 1000},
-          {"rate": 4.00, "bracket": 2000},
-          {"rate": 4.75, "bracket": 3000},
-          {"rate": 5.00, "bracket": 100000},
-          {"rate": 5.25, "bracket": 125000},
-          {"rate": 5.50, "bracket": 150000},
-          {"rate": 5.75, "bracket": 250000}
-        ],
-        "property_tax": 9.20
-      },
-      {
-        "name": "Massachusetts",
-        "income_tax": [
-          {"rate": 5.00, "bracket": 0},
-          {"rate": 9.00, "bracket": 1000000}
-        ],
-        "property_tax": 8.12
-      },
-      {
-        "name": "Michigan",
-        "income_tax": [
-          {"rate": 4.25, "bracket": 0}
-        ],
-        "property_tax": 8.57
-      },
-      {
-        "name": "Minnesota",
-        "income_tax": [
-          {"rate": 5.35, "bracket": 0},
-          {"rate": 6.80, "bracket": 31690},
-          {"rate": 7.85, "bracket": 104090},
-          {"rate": 9.85, "bracket": 193240}
-        ],
-        "property_tax": 10.60
-      },
-      {
-        "name": "Mississippi",
-        "income_tax": [
-          {"rate": 4.70, "bracket": 10000}
-        ],
-        "property_tax": 6.04
-      },
-      {
-        "name": "Montana",
-        "income_tax": [
-          {"rate": 4.70, "bracket": 0},
-          {"rate": 5.90, "bracket": 20500}
-        ],
-        "property_tax": 8.35
-      },
-      {
-        "name": "Nebraska",
-        "income_tax": [
-          {"rate": 2.46, "bracket": 0},
-          {"rate": 3.51, "bracket": 3700},
-          {"rate": 5.01, "bracket": 22170},
-          {"rate": 5.84, "bracket": 35730}
-        ],
-        "property_tax": 7.88
-      },
-      {
-        "name": "Nevada",
-        "income_tax": "none",
-        "property_tax": 5.18
-      },
-      {
-        "name": "New Hampshire",
-        "income_tax": "interest and dividends only",
-        "property_tax": 9.01
-      },
-      {
-        "name": "New Jersey",
-        "income_tax": [
-          {"rate": 1.40, "bracket": 0},
-          {"rate": 1.75, "bracket": 20000},
-          {"rate": 3.50, "bracket": 35000},
-          {"rate": 5.525, "bracket": 40000},
-          {"rate": 6.37, "bracket": 75000},
-          {"rate": 8.97, "bracket": 500000},
-          {"rate": 10.75, "bracket": 1000000}
-        ],
-        "property_tax": 8.13
-      },
-      {
-        "name": "New Mexico",
-        "income_tax": [
-          {"rate": 1.70, "bracket": 0},
-          {"rate": 3.20, "bracket": 5500},
-          {"rate": 4.70, "bracket": 11000},
-          {"rate": 4.90, "bracket": 16000},
-          {"rate": 5.90, "bracket": 210000}
-        ],
-        "property_tax": 6.25
-      },
-      {
-        "name": "New York",
-        "income_tax": [
-          {"rate": 4.00, "bracket": 0},
-          {"rate": 4.50, "bracket": 8500},
-          {"rate": 5.25, "bracket": 11700},
-          {"rate": 5.50, "bracket": 13900},
-          {"rate": 6.00, "bracket": 80650},
-          {"rate": 6.85, "bracket": 215400},
-          {"rate": 9.65, "bracket": 1077550},
-          {"rate": 10.30, "bracket": 5000000},
-          {"rate": 10.90, "bracket": 25000000}
-        ],
-        "property_tax": 7.21
-      },
-      {
-        "name": "North Carolina",
-        "income_tax": [
-          {"rate": 4.50, "bracket": 0}
-        ],
-        "property_tax": 8.46
-      },
-      {
-        "name": "North Dakota",
-        "income_tax": [
-          {"rate": 1.95, "bracket": 44725},
-          {"rate": 2.50, "bracket": 225975}
-        ],
-        "property_tax": 9.76
-      },
-      {
-        "name": "Ohio",
-        "income_tax": [
-          {"rate": 2.75, "bracket": 26050},
-          {"rate": 3.50, "bracket": 92150}
-        ],
-        "property_tax": 7.50
-      },
-      {
-        "name": "Oklahoma",
-        "income_tax": [
-          {"rate": 0.25, "bracket": 0},
-          {"rate": 0.75, "bracket": 1000},
-          {"rate": 1.75, "bracket": 2500},
-          {"rate": 2.75, "bracket": 3750},
-          {"rate": 3.75, "bracket": 4900},
-          {"rate": 4.75, "bracket": 7200}
-        ],
-        "property_tax": 8.77
-      },
-      {
-        "name": "Oregon",
-        "income_tax": [
-          {"rate": 4.75, "bracket": 0},
-          {"rate": 6.75, "bracket": 4300},
-          {"rate": 8.75, "bracket": 10750},
-          {"rate": 9.90, "bracket": 125000}
-        ],
-        "property_tax": 7.89
-      },
-      {
-        "name": "Pennsylvania",
-        "income_tax": [
-          {"rate": 3.07, "bracket": 0}
-        ],
-        "property_tax": 8.97
-      },
-      {
-        "name": "Rhode Island",
-        "income_tax": [
-          {"rate": 3.75, "bracket": 0},
-          {"rate": 4.75, "bracket": 77450},
-          {"rate": 5.99, "bracket": 176050}
-        ],
-        "property_tax": 7.63
-      },
-      {
-        "name": "South Carolina",
-        "income_tax": [
-          {"rate": 0.00, "bracket": 0},
-          {"rate": 3.00, "bracket": 3460},
-          {"rate": 6.40, "bracket": 17330}
-        ],
-        "property_tax": 5.57
-      },
-      {
-        "name": "South Dakota",
-        "income_tax": "none",
-        "property_tax": 8.33
-      },
-      {
-        "name": "Tennessee",
-        "income_tax": "none",
-        "property_tax": 6.47
-      },
-      {
-        "name": "Texas",
-        "income_tax": "none",
-        "property_tax": 7.81
-      },
-      {
-        "name": "Utah",
-        "income_tax": [
-          {"rate": 4.65, "bracket": 0}
-        ],
-        "property_tax": 5.97
-      },
-      {
-        "name": "Vermont",
-        "income_tax": [
-          {"rate": 3.35, "bracket": 0},
-          {"rate": 6.60, "bracket": 45400},
-          {"rate": 7.60, "bracket": 110050},
-          {"rate": 8.75, "bracket": 229550}
-        ],
-        "property_tax": 6.80
-      },
-      {
-        "name": "Virginia",
-        "income_tax": [
-          {"rate": 2.00, "bracket": 0},
-          {"rate": 3.00, "bracket": 3000},
-          {"rate": 5.00, "bracket": 5000},
-          {"rate": 5.75, "bracket": 17000}
-        ],
-        "property_tax": 7.28
-      },
-      {
-        "name": "Washington",
-        "income_tax": "capital gains income only",
-        "property_tax": 9.04
-      },
-      {
-        "name": "West Virginia",
-        "income_tax": [
-          {"rate": 2.36, "bracket": 0},
-          {"rate": 3.15, "bracket": 10000},
-          {"rate": 3.54, "bracket": 25000},
-          {"rate": 4.72, "bracket": 40000},
-          {"rate": 5.12, "bracket": 60000}
-        ],
-        "property_tax": 6.99
-      },
-      {
-        "name": "Wisconsin",
-        "income_tax": [
-          {"rate": 3.50, "bracket": 0},
-          {"rate": 4.40, "bracket": 14320},
-          {"rate": 5.30, "bracket": 28640},
-          {"rate": 7.65, "bracket": 315310}
-        ],
-        "property_tax": 6.88
-      },
-      {
-        "name": "Wyoming",
-        "income_tax": "none",
-        "property_tax": 6.14
-      },
-      {
-        "name": "Washington, DC",
-        "income_tax": [
-          {"rate": 4.00, "bracket": 0},
-          {"rate": 6.00, "bracket": 10000},
-          {"rate": 6.50, "bracket": 40000},
-          {"rate": 8.50, "bracket": 60000},
-          {"rate": 9.25, "bracket": 250000},
-          {"rate": 9.75, "bracket": 500000},
-          {"rate": 10.75, "bracket": 1000000}
-        ],
-        "property_tax": 8.70
-      },
-      {
-        "name": "Puerto Rico",
-        "income_tax": [
-          {"rate": 0.00, "bracket": 0},
-          {"rate": 3.00, "bracket": 20000},
-          {"rate": 5.00, "bracket": 40000},
-          {"rate": 10.00, "bracket": 60000}
-        ],
-        "property_tax": 5.00
-      },
-      {
-        "name": "None",
-        "income_tax": "none",
-        "property_tax": 0.00
-      }
-    ]
-  }
+  "states": [
+    {
+      "name": "Alabama",
+      "income_tax": [
+        {"rate": 2.00, "bracket": 0},
+        {"rate": 4.00, "bracket": 500},
+        {"rate": 5.00, "bracket": 3000}
+      ],
+      "property_tax": 6.55,
+      "corporate_income_tax": 6.50,
+      "sales_tax": 4.00
+    },
+    {
+      "name": "Alaska",
+      "income_tax": "none",
+      "property_tax": 10.45,
+      "corporate_income_tax": 9.40,
+      "sales_tax": 0.00
+    },
+    {
+      "name": "Arizona",
+      "income_tax": [
+        {"rate": 2.50, "bracket": 0}
+      ],
+      "property_tax": 6.44,
+      "corporate_income_tax": 4.90,
+      "sales_tax": 5.60
+    },
+    {
+      "name": "Arkansas",
+      "income_tax": [
+        {"rate": 2.00, "bracket": 0},
+        {"rate": 4.00, "bracket": 4400},
+        {"rate": 4.40, "bracket": 8800}
+      ],
+      "property_tax": 6.35,
+      "corporate_income_tax": 5.30,
+      "sales_tax": 6.50
+    },
+    {
+      "name": "California",
+      "income_tax": [
+        {"rate": 1.00, "bracket": 0},
+        {"rate": 2.00, "bracket": 10412},
+        {"rate": 4.00, "bracket": 24684},
+        {"rate": 6.00, "bracket": 38959},
+        {"rate": 8.00, "bracket": 54081},
+        {"rate": 9.30, "bracket": 68350},
+        {"rate": 10.30, "bracket": 349137},
+        {"rate": 11.30, "bracket": 418961},
+        {"rate": 12.30, "bracket": 698271},
+        {"rate": 13.30, "bracket": 1000000}
+      ],
+      "property_tax": 7.56,
+      "corporate_income_tax": 8.84,
+      "sales_tax": 7.25
+    },
+    {
+      "name": "Colorado",
+      "income_tax": [
+        {"rate": 4.40, "bracket": 0}
+      ],
+      "property_tax": 7.20,
+      "corporate_income_tax": 4.55,
+      "sales_tax": 2.90
+    },
+    {
+      "name": "Connecticut",
+      "income_tax": [
+        {"rate": 2.00, "bracket": 0},
+        {"rate": 4.50, "bracket": 10000},
+        {"rate": 5.50, "bracket": 50000},
+        {"rate": 6.00, "bracket": 100000},
+        {"rate": 6.50, "bracket": 200000},
+        {"rate": 6.90, "bracket": 250000},
+        {"rate": 6.99, "bracket": 500000}
+      ],
+      "property_tax": 5.37,
+      "corporate_income_tax": 7.50,
+      "sales_tax": 6.35
+    },
+    {
+      "name": "Delaware",
+      "income_tax": [
+        {"rate": 2.20, "bracket": 2000},
+        {"rate": 3.90, "bracket": 5000},
+        {"rate": 4.80, "bracket": 10000},
+        {"rate": 5.20, "bracket": 20000},
+        {"rate": 5.55, "bracket": 25000},
+        {"rate": 6.60, "bracket": 60000}
+      ],
+      "property_tax": 5.52,
+      "corporate_income_tax": 8.70,
+      "sales_tax": 0.00
+    },
+    {
+      "name": "Florida",
+      "income_tax": "none",
+      "property_tax": 8.80,
+      "corporate_income_tax": 5.50,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Georgia",
+      "income_tax": [
+        {"rate": 5.49, "bracket": 0}
+      ],
+      "property_tax": 9.32,
+      "corporate_income_tax": 5.75,
+      "sales_tax": 4.00
+    },
+    {
+      "name": "Hawaii",
+      "income_tax": [
+        {"rate": 1.40, "bracket": 0},
+        {"rate": 3.20, "bracket": 2400},
+        {"rate": 5.50, "bracket": 4800},
+        {"rate": 6.40, "bracket": 9600},
+        {"rate": 6.80, "bracket": 14400},
+        {"rate": 7.20, "bracket": 19200},
+        {"rate": 7.60, "bracket": 24000},
+        {"rate": 7.90, "bracket": 36000},
+        {"rate": 8.25, "bracket": 48000},
+        {"rate": 9.00, "bracket": 150000},
+        {"rate": 10.00, "bracket": 175000},
+        {"rate": 11.00, "bracket": 200000}
+      ],
+      "property_tax": 3.01,
+      "corporate_income_tax": 6.40,
+      "sales_tax": 4.00
+    },
+    {
+      "name": "Idaho",
+      "income_tax": [
+        {"rate": 5.80, "bracket": 4489}
+      ],
+      "property_tax": 7.45,
+      "corporate_income_tax": 5.80,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Illinois",
+      "income_tax": [
+        {"rate": 4.95, "bracket": 0}
+      ],
+      "property_tax": 6.89,
+      "corporate_income_tax": 4.80,
+      "sales_tax": 6.25
+    },
+    {
+      "name": "Indiana",
+      "income_tax": [
+        {"rate": 3.05, "bracket": 0}
+      ],
+      "property_tax": 8.31,
+      "corporate_income_tax": 4.90,
+      "sales_tax": 7.00
+    },
+    {
+      "name": "Iowa",
+      "income_tax": [
+        {"rate": 4.40, "bracket": 0},
+        {"rate": 4.82, "bracket": 6210},
+        {"rate": 5.70, "bracket": 31050}
+      ],
+      "property_tax": 8.50,
+      "corporate_income_tax": 8.40,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Kansas",
+      "income_tax": [
+        {"rate": 3.10, "bracket": 0},
+        {"rate": 5.25, "bracket": 15000},
+        {"rate": 5.70, "bracket": 30000}
+      ],
+      "property_tax": 7.65,
+      "corporate_income_tax": 4.00,
+      "sales_tax": 6.50
+    },
+    {
+      "name": "Kentucky",
+      "income_tax": [
+        {"rate": 4.00, "bracket": 0}
+      ],
+      "property_tax": 8.25,
+      "corporate_income_tax": 5.00,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Louisiana",
+      "income_tax": [
+        {"rate": 1.85, "bracket": 0},
+        {"rate": 3.50, "bracket": 12500},
+        {"rate": 4.25, "bracket": 50000}
+      ],
+      "property_tax": 5.05,
+      "corporate_income_tax": 7.50,
+      "sales_tax": 4.45
+    },
+    {
+      "name": "Maine",
+      "income_tax": [
+        {"rate": 5.80, "bracket": 0},
+        {"rate": 6.75, "bracket": 26050},
+        {"rate": 7.15, "bracket": 61600}
+      ],
+      "property_tax": 10.27,
+      "corporate_income_tax": 8.93,
+      "sales_tax": 5.50
+    },
+    {
+      "name": "Maryland",
+      "income_tax": [
+        {"rate": 2.00, "bracket": 0},
+        {"rate":
+
+ 3.00, "bracket": 1000},
+        {"rate": 4.00, "bracket": 2000},
+        {"rate": 4.75, "bracket": 3000},
+        {"rate": 5.00, "bracket": 100000},
+        {"rate": 5.25, "bracket": 125000},
+        {"rate": 5.50, "bracket": 150000},
+        {"rate": 5.75, "bracket": 250000}
+      ],
+      "property_tax": 9.20,
+      "corporate_income_tax": 8.25,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Massachusetts",
+      "income_tax": [
+        {"rate": 5.00, "bracket": 0},
+        {"rate": 9.00, "bracket": 1000000}
+      ],
+      "property_tax": 8.12,
+      "corporate_income_tax": 8.00,
+      "sales_tax": 6.25
+    },
+    {
+      "name": "Michigan",
+      "income_tax": [
+        {"rate": 4.25, "bracket": 0}
+      ],
+      "property_tax": 8.57,
+      "corporate_income_tax": 6.00,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Minnesota",
+      "income_tax": [
+        {"rate": 5.35, "bracket": 0},
+        {"rate": 6.80, "bracket": 31690},
+        {"rate": 7.85, "bracket": 104090},
+        {"rate": 9.85, "bracket": 193240}
+      ],
+      "property_tax": 10.60,
+      "corporate_income_tax": 9.80,
+      "sales_tax": 6.88
+    },
+    {
+      "name": "Mississippi",
+      "income_tax": [
+        {"rate": 4.70, "bracket": 10000}
+      ],
+      "property_tax": 6.04,
+      "corporate_income_tax": 5.00,
+      "sales_tax": 7.00
+    },
+    {
+      "name": "Montana",
+      "income_tax": [
+        {"rate": 4.70, "bracket": 0},
+        {"rate": 5.90, "bracket": 20500}
+      ],
+      "property_tax": 8.35,
+      "corporate_income_tax": 6.75,
+      "sales_tax": 0.00
+    },
+    {
+      "name": "Nebraska",
+      "income_tax": [
+        {"rate": 2.46, "bracket": 0},
+        {"rate": 3.51, "bracket": 3700},
+        {"rate": 5.01, "bracket": 22170},
+        {"rate": 5.84, "bracket": 35730}
+      ],
+      "property_tax": 7.88,
+      "corporate_income_tax": 5.58,
+      "sales_tax": 5.50
+    },
+    {
+      "name": "Nevada",
+      "income_tax": "none",
+      "property_tax": 5.18,
+      "corporate_income_tax": 0.00,
+      "sales_tax": 6.85
+    },
+    {
+      "name": "New Hampshire",
+      "income_tax": "interest and dividends only",
+      "property_tax": 9.01,
+      "corporate_income_tax": 7.60,
+      "sales_tax": 0.00
+    },
+    {
+      "name": "New Jersey",
+      "income_tax": [
+        {"rate": 1.40, "bracket": 0},
+        {"rate": 1.75, "bracket": 20000},
+        {"rate": 3.50, "bracket": 35000},
+        {"rate": 5.525, "bracket": 40000},
+        {"rate": 6.37, "bracket": 75000},
+        {"rate": 8.97, "bracket": 500000},
+        {"rate": 10.75, "bracket": 1000000}
+      ],
+      "property_tax": 8.13,
+      "corporate_income_tax": 11.50,
+      "sales_tax": 6.63
+    },
+    {
+      "name": "New Mexico",
+      "income_tax": [
+        {"rate": 1.70, "bracket": 0},
+        {"rate": 3.20, "bracket": 5500},
+        {"rate": 4.70, "bracket": 11000},
+        {"rate": 4.90, "bracket": 16000},
+        {"rate": 5.90, "bracket": 210000}
+      ],
+      "property_tax": 6.25,
+      "corporate_income_tax": 5.90,
+      "sales_tax": 5.13
+    },
+    {
+      "name": "New York",
+      "income_tax": [
+        {"rate": 4.00, "bracket": 0},
+        {"rate": 4.50, "bracket": 8500},
+        {"rate": 5.25, "bracket": 11700},
+        {"rate": 5.50, "bracket": 13900},
+        {"rate": 6.00, "bracket": 80650},
+        {"rate": 6.85, "bracket": 215400},
+        {"rate": 9.65, "bracket": 1077550},
+        {"rate": 10.30, "bracket": 5000000},
+        {"rate": 10.90, "bracket": 25000000}
+      ],
+      "property_tax": 7.21,
+      "corporate_income_tax": 7.25,
+      "sales_tax": 4.00
+    },
+    {
+      "name": "North Carolina",
+      "income_tax": [
+        {"rate": 4.50, "bracket": 0}
+      ],
+      "property_tax": 8.46,
+      "corporate_income_tax": 2.50,
+      "sales_tax": 4.75
+    },
+    {
+      "name": "North Dakota",
+      "income_tax": [
+        {"rate": 1.95, "bracket": 44725},
+        {"rate": 2.50, "bracket": 225975}
+      ],
+      "property_tax": 9.76,
+      "corporate_income_tax": 4.31,
+      "sales_tax": 5.00
+    },
+    {
+      "name": "Ohio",
+      "income_tax": [
+        {"rate": 2.75, "bracket": 26050},
+        {"rate": 3.50, "bracket": 92150}
+      ],
+      "property_tax": 7.50,
+      "corporate_income_tax": 5.00,
+      "sales_tax": 5.75
+    },
+    {
+      "name": "Oklahoma",
+      "income_tax": [
+        {"rate": 0.25, "bracket": 0},
+        {"rate": 0.75, "bracket": 1000},
+        {"rate": 1.75, "bracket": 2500},
+        {"rate": 2.75, "bracket": 3750},
+        {"rate": 3.75, "bracket": 4900},
+        {"rate": 4.75, "bracket": 7200}
+      ],
+      "property_tax": 8.77,
+      "corporate_income_tax": 6.00,
+      "sales_tax": 4.50
+    },
+    {
+      "name": "Oregon",
+      "income_tax": [
+        {"rate": 4.75, "bracket": 0},
+        {"rate": 6.75, "bracket": 4300},
+        {"rate": 8.75, "bracket": 10750},
+        {"rate": 9.90, "bracket": 125000}
+      ],
+      "property_tax": 7.89,
+      "corporate_income_tax": 6.60,
+      "sales_tax": 0.00
+    },
+    {
+      "name": "Pennsylvania",
+      "income_tax": [
+        {"rate": 3.07, "bracket": 0}
+      ],
+      "property_tax": 8.97,
+      "corporate_income_tax": 9.99,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Rhode Island",
+      "income_tax": [
+        {"rate": 3.75, "bracket": 0},
+        {"rate": 4.75, "bracket": 77450},
+        {"rate": 5.99, "bracket": 176050}
+      ],
+      "property_tax": 7.63,
+      "corporate_income_tax": 7.00,
+      "sales_tax": 7.00
+    },
+    {
+      "name": "South Carolina",
+      "income_tax": [
+        {"rate": 0.00, "bracket": 0},
+        {"rate": 3.00, "bracket": 3460},
+
+
+        {"rate": 6.40, "bracket": 17330}
+      ],
+      "property_tax": 5.57,
+      "corporate_income_tax": 5.00,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "South Dakota",
+      "income_tax": "none",
+      "property_tax": 8.33,
+      "corporate_income_tax": 0.00,
+      "sales_tax": 4.50
+    },
+    {
+      "name": "Tennessee",
+      "income_tax": "none",
+      "property_tax": 6.47,
+      "corporate_income_tax": 6.50,
+      "sales_tax": 7.00
+    },
+    {
+      "name": "Texas",
+      "income_tax": "none",
+      "property_tax": 7.81,
+      "corporate_income_tax": 0.00,
+      "sales_tax": 6.25
+    },
+    {
+      "name": "Utah",
+      "income_tax": [
+        {"rate": 4.65, "bracket": 0}
+      ],
+      "property_tax": 5.97,
+      "corporate_income_tax": 4.95,
+      "sales_tax": 4.85
+    },
+    {
+      "name": "Vermont",
+      "income_tax": [
+        {"rate": 3.35, "bracket": 0},
+        {"rate": 6.60, "bracket": 45400},
+        {"rate": 7.60, "bracket": 110050},
+        {"rate": 8.75, "bracket": 229550}
+      ],
+      "property_tax": 6.80,
+      "corporate_income_tax": 8.50,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Virginia",
+      "income_tax": [
+        {"rate": 2.00, "bracket": 0},
+        {"rate": 3.00, "bracket": 3000},
+        {"rate": 5.00, "bracket": 5000},
+        {"rate": 5.75, "bracket": 17000}
+      ],
+      "property_tax": 7.28,
+      "corporate_income_tax": 6.00,
+      "sales_tax": 5.30
+    },
+    {
+      "name": "Washington",
+      "income_tax": "capital gains income only",
+      "property_tax": 9.04,
+      "corporate_income_tax": 0.00,
+      "sales_tax": 6.50
+    },
+    {
+      "name": "West Virginia",
+      "income_tax": [
+        {"rate": 2.36, "bracket": 0},
+        {"rate": 3.15, "bracket": 10000},
+        {"rate": 3.54, "bracket": 25000},
+        {"rate": 4.72, "bracket": 40000},
+        {"rate": 5.12, "bracket": 60000}
+      ],
+      "property_tax": 6.99,
+      "corporate_income_tax": 6.50,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Wisconsin",
+      "income_tax": [
+        {"rate": 3.50, "bracket": 0},
+        {"rate": 4.40, "bracket": 14320},
+        {"rate": 5.30, "bracket": 28640},
+        {"rate": 7.65, "bracket": 315310}
+      ],
+      "property_tax": 6.88,
+      "corporate_income_tax": 7.90,
+      "sales_tax": 5.00
+    },
+    {
+      "name": "Wyoming",
+      "income_tax": "none",
+      "property_tax": 6.14,
+      "corporate_income_tax": 0.00,
+      "sales_tax": 4.00
+    },
+    {
+      "name": "Washington, DC",
+      "income_tax": [
+        {"rate": 4.00, "bracket": 0},
+        {"rate": 6.00, "bracket": 10000},
+        {"rate": 6.50, "bracket": 40000},
+        {"rate": 8.50, "bracket": 60000},
+        {"rate": 9.25, "bracket": 250000},
+        {"rate": 9.75, "bracket": 500000},
+        {"rate": 10.75, "bracket": 1000000}
+      ],
+      "property_tax": 8.70,
+      "corporate_income_tax": 8.25,
+      "sales_tax": 6.00
+    },
+    {
+      "name": "Puerto Rico",
+      "income_tax": [
+        {"rate": 0.00, "bracket": 0},
+        {"rate": 3.00, "bracket": 20000},
+        {"rate": 5.00, "bracket": 40000},
+        {"rate": 10.00, "bracket": 60000}
+      ],
+      "property_tax": 5.00,
+      "corporate_income_tax": 18.50,
+      "sales_tax": 11.50
+    },
+    {
+      "name": "None",
+      "income_tax": "none",
+      "property_tax": 0.00,
+      "corporate_income_tax": 0.00,
+      "sales_tax": 0.00
+    }
+  ]
+}
