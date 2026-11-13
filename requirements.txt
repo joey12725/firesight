@@ -1,9 +1,10 @@
-matplotlib
-pandas
-numpy
-boto3
-plotly==5.23.0
-st-repeating-field-group
-streamlit==1.35.0
-streamlit-lottie
-pytest
+streamlit==1.67.0
+pandas==3.1.1
+numpy==2.5.4
+plotly==7.1.0
+requests==2.34.2
+streamlit-lottie==0.0.5
+st-repeating-field-group==0.2.0
+# optional backends: DynamoDB accounts, Claude for FIRESight GPT
+boto3==1.44.3
+anthropic==2.8.0

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+# local account store and secrets
+.firesight/
+.streamlit/secrets.toml
