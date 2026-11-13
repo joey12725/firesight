@@ -1,44 +1,13 @@
 import streamlit as st
-import datetime
-import os
-import json
-import boto3
-from boto3.dynamodb.conditions import Key
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
-import pandas as pd
 
-# DynamoDB configuration (as in your original code)
-try:
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
-    table = dynamodb.Table('firesight-users')
-except:
-    AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
-    AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-2',
-                              aws_access_key_id=AWS_ACCESS_KEY_ID,
-                              aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-    table = dynamodb.Table('firesight-users')
+from FIRE import run_monte_carlo_simulation
+from storage import load_user_profile
 
 # Set page configuration
-st.set_page_config(page_title="FIRE Simulator", page_icon="🔥")
-
-# Attempt to load FIRE.py script
-try:
-    exec(open(os.path.join(os.getcwd(), "FIRE.py")).read())
-except FileNotFoundError as e:
-    st.error(f"Error loading FIRE.py: {e}")
-
-def fetch_user_profile(user_id):
-    response = table.get_item(Key={'userid': user_id})
-    return response.get('Item', {}).get('profile', None)
-
-def load_user_profile(user_id):
-    profile_json = fetch_user_profile(user_id)
-    if profile_json:
-        return json.loads(profile_json)
-    return None
+st.set_page_config(page_title="FIRE Simulator", page_icon="🔥", layout="wide")
 
 def display_results(user_data):
     """
@@ -61,11 +30,14 @@ def display_results(user_data):
     else:
         st.warning("No retirement ages were determined in the simulations (possibly never reached retirement).")
 
-    # (Optional) If you'd collected raw retirement ages in run_monte_carlo_simulation, you could plot them here.
-    retirement_ages = []  # Currently no raw distribution provided in the original code
+    # Retirement age of each run = age in the first month it stopped working
+    retirement_ages = [df.loc[~df['working'].astype(bool), 'age'].iloc[0]
+                       for df in results if (~df['working'].astype(bool)).any()]
+    st.markdown(f"**Runs reaching FI within {months // 12} years**: {len(retirement_ages)} of {num_sims}")
     if len(retirement_ages) > 0:
         fig = px.histogram(retirement_ages, nbins=20, labels={'value': 'Retirement Age'}, title="Retirement Age Distribution")
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(showlegend=False, yaxis_title="Simulations")
+        st.plotly_chart(fig, width="stretch")
         for percentile in [10, 25, 50, 75, 90]:
             val = np.percentile(retirement_ages, percentile)
             st.write(f"{percentile}th percentile retirement age: {val:.2f}")
@@ -104,7 +76,8 @@ def display_results(user_data):
 
     # Create an interactive Plotly fan chart
     fig_fan = go.Figure()
-    months_axis = np.arange(months)
+    start_age = user_data.get("age", 0)
+    months_axis = start_age + np.arange(months) / 12
 
     # Add fill for 5-95 percentile band
     fig_fan.add_trace(go.Scatter(
@@ -152,12 +125,12 @@ def display_results(user_data):
 
     fig_fan.update_layout(
         title="Net Worth Over Time (Fan Chart)",
-        xaxis_title="Month",
+        xaxis_title="Age",
         yaxis_title="Net Worth",
         hovermode="x unified"
     )
 
-    st.plotly_chart(fig_fan, use_container_width=True)
+    st.plotly_chart(fig_fan, width="stretch")
 
     # 3) Compare "Average" to "Best" and "Worst" single simulations
     final_nw = [df['net_worth'].iloc[-1] for df in results]
@@ -188,14 +161,15 @@ def display_results(user_data):
         xaxis_title="Month",
         yaxis_title="Net Worth",
     )
-    st.plotly_chart(fig_comp, use_container_width=True)
+    st.plotly_chart(fig_comp, width="stretch")
 
     # 4) Final Net Worth Distribution (Histogram)
     st.header("Final Net Worth Distribution")
     fig_hist = px.histogram(final_nw, nbins=20,
                             labels={'value': 'Final Net Worth'},
                             title="Histogram: Final Net Worth After Simulation")
-    st.plotly_chart(fig_hist, use_container_width=True)
+    fig_hist.update_layout(showlegend=False, yaxis_title="Simulations")
+    st.plotly_chart(fig_hist, width="stretch")
 
     # Show percentile stats for final net worth
     for p in [10, 25, 50, 75, 90]:
@@ -222,8 +196,10 @@ if __name__ == "__main__":
         user_data = load_user_profile(user_id)
         if user_data:
             if st.button("Run Updated Simulation"):
-                display_results(user_data)
+                with st.spinner(f"Running {user_data.get('num_simulations', 10)} simulations..."):
+                    display_results(user_data)
         else:
             st.error("Failed to load user profile.")
     else:
         st.error("User not logged in.")
+        st.page_link("pages/Create Account and Log in.py", label="Log in or try a demo profile", icon="🔐")

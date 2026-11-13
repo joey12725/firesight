@@ -1,0 +1,59 @@
+{
+  "title": "Early-career saver",
+  "summary": "27, single, Denver. A tech salary, a student loan to clear and a first home on the calendar.",
+  "profile": {
+    "age": 27,
+    "state": "Colorado",
+    "city": "Denver",
+    "country": "United States",
+    "married": false,
+    "dependents": 0,
+    "simulate_years": 30,
+    "num_simulations": 25,
+    "inflation": 0.03,
+    "income": [
+      {"income_type": "salary/hourly", "name": "Software Engineer Salary", "amount": 108000, "frequency": "annual",
+       "overtime_eligible": false, "has_growth": true, "growth_type": "percentage", "growth_percentage": 4.0},
+      {"income_type": "bonus", "name": "Annual Bonus", "amount": 6000, "bonus_frequency": "annual",
+       "has_growth": false}
+    ],
+    "budget_items": [
+      {"type": "rent", "name": "rent", "value": 1650, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "utilities", "name": "utilities", "value": 160, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "groceries", "name": "groceries", "value": 420, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "dining_out", "name": "dining_out", "value": 220, "frequency": "monthly", "changes_if_not_working": true, "value_if_not_working": 150},
+      {"type": "gas", "name": "gas", "value": 110, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "healthcare", "name": "healthcare", "value": 180, "frequency": "monthly", "changes_if_not_working": true, "value_if_not_working": 520},
+      {"type": "entertainment", "name": "entertainment", "value": 150, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "gym", "name": "gym", "value": 45, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "other", "name": "Travel", "value": 3000, "frequency": "annual", "changes_if_not_working": false}
+    ],
+    "expenditure_growth_beyond_inflation": 0.01,
+    "assets_and_debts": [
+      {"type": "Checking Account", "name": "Checking", "value": 5500.0},
+      {"type": "Savings Account", "name": "Emergency Fund", "value": 12000.0, "interest_rate": 4.0},
+      {"type": "Retirement Accounts", "name": "401(k)", "value": 26000.0},
+      {"type": "Student Loan", "name": "Student Loan", "value": 18500.0, "interest_rate": 5.0, "remaining_term": 8}
+    ],
+    "investment_index_funds": 70.0,
+    "investment_bonds": 5.0,
+    "investment_rental_real_estate": 0.0,
+    "investment_retirement_accounts": 20.0,
+    "investment_high_yield_savings": 5.0,
+    "investment_peer_to_peer_lending": 0.0,
+    "investment_individual_stocks": 0.0,
+    "investment_cryptocurrency": 0.0,
+    "investment_other": 0.0,
+    "milestones": [
+      {"date": "2030-06-01", "buy_a_house": true, "change_location": false, "major_expense": false,
+       "change_income": false, "change_budget": false, "major_windfall": false, "family_change": false,
+       "house_price": 420000.0, "down_payment": 84000.0, "mortgage_rate": 0.06, "mortgage_term_years": 30,
+       "property_tax_rate": 0.005, "annual_maintenance_cost": 4000.0}
+    ],
+    "retirement_goal_method": "Safe Withdrawal Rate",
+    "post_retirement_expenses": 48000.0,
+    "average_post_retirement_income": 0.0,
+    "withdrawal_rate": 0.04,
+    "adjust_for_inflation": true
+  }
+}

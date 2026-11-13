@@ -1,44 +1,10 @@
-import streamlit as st
-import boto3
-from boto3.dynamodb.conditions import Key
-import uuid
-import hashlib
 import re
-# DynamoDB configuration
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
-table = dynamodb.Table('firesight-users')
+
+import streamlit as st
+
+from storage import authenticate, list_example_profiles, register, signup_code, start_demo
 
 st.set_page_config(page_title="FIRE Calculator - Login", page_icon="🔒")
-# Helper functions
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def create_user(email, password, subscription_status, profile):
-    email = email.lower()
-    user_id = str(uuid.uuid4())
-    hashed_password = hash_password(password)
-    table.put_item(
-        Item={
-            'userid': user_id,
-            'email': email,
-            'password': hashed_password,
-            'subscription_status': subscription_status,
-            'profile': profile
-        }
-    )
-    return user_id
-
-def get_user(email, password):
-    email = email.lower()
-    hashed_password = hash_password(password)
-    response = table.query(
-        IndexName='email-index',
-        KeyConditionExpression=Key('email').eq(email)
-    )
-    items = response.get('Items', [])
-    if items and items[0]['password'] == hashed_password:
-        return items[0]
-    return None
 
 # Streamlit UI
 st.title('FireSight App')
@@ -51,47 +17,67 @@ if 'user_id' not in st.session_state:
 
 # Login Page
 if not st.session_state['logged_in']:
+    st.header('Try a demo profile')
+    st.write("Jump straight in with a ready-made household. Edits stay in your browser session.")
+    examples = list_example_profiles()
+    cols = st.columns(len(examples))
+    for col, (slug, example) in zip(cols, examples.items()):
+        with col:
+            st.subheader(example["title"])
+            st.caption(example["summary"])
+            if st.button("Use this profile", key=f"demo_{slug}"):
+                start_demo(slug)
+                st.rerun()
+
     st.header('Login')
     email = st.text_input('Email')
     password = st.text_input('Password', type='password')
     if st.button('Login'):
-        user = get_user(email, password)
-        if user:
+        user_id = authenticate(email, password)
+        if user_id:
             st.session_state['logged_in'] = True
-            st.session_state['user_id'] = user['userid']
+            st.session_state['user_id'] = user_id
             st.success('Logged in successfully')
+            st.rerun()
         else:
             st.error('Invalid email or password')
 
     st.header('Create Account')
+    required_code = signup_code()
     new_email = st.text_input('New Email')
     new_password = st.text_input('New Password', type='password')
-    beta_code = st.text_input('Beta Code')
+    beta_code = st.text_input('Beta Code') if required_code else None
     if st.button('Create Account'):
-        #check if user already exists
-        user = get_user(new_email, new_password)
-        if user:
-            st.error('User already exists')
-        elif not new_email or not new_password:
+        if not new_email or not new_password:
             st.error('Email and password are required')
-        elif not beta_code:
-            st.error('Beta code is required')
         #regex check email
         elif not re.match(r"[^@]+@[^@]+\.[^@]+", new_email):
             st.error('Invalid email')
+        elif required_code and beta_code != required_code:
+            st.error('Invalid beta code')
         else:
-            if beta_code == 'friends-and-family':
-                user_id = create_user(new_email, new_password, True, '{}')
-                st.success(f'Account created successfully. You are now logged in.')
+            try:
+                user_id = register(new_email, new_password)
+            except ValueError as e:
+                st.error(str(e))
+            else:
+                st.success('Account created successfully. You are now logged in.')
                 st.session_state['logged_in'] = True
                 st.session_state['user_id'] = user_id
-            else:
-                st.error('Invalid beta code')
+                st.rerun()
 else:
     st.header('Welcome!')
-    st.write('You are logged in.')
+    if str(st.session_state['user_id']).startswith("demo:"):
+        st.write('You are exploring a demo profile.')
+    else:
+        st.write('You are logged in.')
+    st.page_link("pages/Edit Profile.py", label="Edit your profile", icon="✏️")
+    st.page_link("pages/Run Simulation.py", label="Run the simulation", icon="🔥")
+    st.page_link("pages/Scenario Analysis.py", label="Compare scenarios", icon="🔍")
 
     if st.button('Logout'):
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
         st.session_state['logged_in'] = False
         st.session_state['user_id'] = None
-        st.success('Logged out successfully')
+        st.rerun()

@@ -2,8 +2,12 @@ import streamlit as st
 from streamlit_lottie import st_lottie
 import requests
 
+@st.cache_data(show_spinner=False)
 def load_lottieurl(url: str):
-    r = requests.get(url)
+    try:
+        r = requests.get(url, timeout=5)
+    except requests.RequestException:
+        return None
     if r.status_code != 200:
         return None
     return r.json()
@@ -48,7 +52,8 @@ with col1:
 with col2:
     lottie_url = "https://lottie.host/50664d6f-1780-4c56-b29c-0576fc37a30a/BnsjF5Efz4.json"
     lottie_json = load_lottieurl(lottie_url)
-    st_lottie(lottie_json, height=150, key="header_animation")
+    if lottie_json:
+        st_lottie(lottie_json, height=150, key="header_animation")
 
 st.markdown("---")
 
@@ -114,7 +119,8 @@ col1, col2 = st.columns(2)
 with col1:
     lottie_url = "https://lottie.host/e1337b35-cba8-4685-8e88-a2764a4114e8/6fP1YsKkYt.json"
     lottie_json = load_lottieurl(lottie_url)
-    st_lottie(lottie_json, height=1200, key="how_it_works_animation")
+    if lottie_json:
+        st_lottie(lottie_json, height=1200, key="how_it_works_animation")
 
 with col2:
     st.header("How FIRESight Works")

@@ -1,0 +1,64 @@
+{
+  "title": "Dual-income family",
+  "summary": "37 and 36, two kids, Austin. Two salaries, a car loan, a six-figure 401(k) and a big kitchen remodel coming.",
+  "profile": {
+    "age": 37,
+    "state": "Texas",
+    "city": "Austin",
+    "country": "United States",
+    "married": true,
+    "spouse_age": 36,
+    "dependents": 2,
+    "simulate_years": 30,
+    "num_simulations": 25,
+    "inflation": 0.03,
+    "income": [
+      {"income_type": "salary/hourly", "name": "Product Manager Salary", "amount": 128000, "frequency": "annual",
+       "overtime_eligible": false, "has_growth": true, "growth_type": "percentage", "growth_percentage": 3.0},
+      {"income_type": "salary/hourly", "name": "Nurse Salary", "amount": 41, "frequency": "hourly",
+       "overtime_eligible": true, "overtime_rate": 1.5, "monthly_overtime_hours": 10,
+       "has_growth": true, "growth_type": "percentage", "growth_percentage": 2.5},
+      {"income_type": "bonus", "name": "Year-end Bonus", "amount": 9000, "bonus_frequency": "annual", "has_growth": false}
+    ],
+    "budget_items": [
+      {"type": "mortgage", "name": "Mortgage (PITI)", "value": 2900, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "utilities", "name": "utilities", "value": 340, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "groceries", "name": "groceries", "value": 1150, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "dining_out", "name": "dining_out", "value": 380, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "gas", "name": "gas", "value": 260, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "healthcare", "name": "healthcare", "value": 640, "frequency": "monthly", "changes_if_not_working": true, "value_if_not_working": 1500},
+      {"type": "other", "name": "Childcare & Activities", "value": 1400, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "clothing", "name": "clothing", "value": 180, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "entertainment", "name": "entertainment", "value": 250, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "other", "name": "Vacations", "value": 7000, "frequency": "annual", "changes_if_not_working": false}
+    ],
+    "expenditure_growth_beyond_inflation": 0.0,
+    "assets_and_debts": [
+      {"type": "Checking Account", "name": "Joint Checking", "value": 14000.0},
+      {"type": "Savings Account", "name": "Emergency Fund", "value": 32000.0, "interest_rate": 4.0},
+      {"type": "Retirement Accounts", "name": "401(k)s and IRAs", "value": 245000.0},
+      {"type": "Index Funds", "name": "Taxable Brokerage", "value": 68000.0},
+      {"type": "Auto Loan", "name": "Minivan Loan", "value": 21000.0, "interest_rate": 6.5, "remaining_term": 4}
+    ],
+    "investment_index_funds": 55.0,
+    "investment_bonds": 15.0,
+    "investment_rental_real_estate": 0.0,
+    "investment_retirement_accounts": 25.0,
+    "investment_high_yield_savings": 5.0,
+    "investment_peer_to_peer_lending": 0.0,
+    "investment_individual_stocks": 0.0,
+    "investment_cryptocurrency": 0.0,
+    "investment_other": 0.0,
+    "milestones": [
+      {"date": "2028-03-01", "buy_a_house": false, "change_location": false, "major_expense": true,
+       "change_income": false, "change_budget": false, "major_windfall": false, "family_change": false,
+       "item_name": "Kitchen Remodel", "total_cost": 45000.0, "purchase_type": "finance",
+       "down_payment": 15000.0, "loan_amount": 30000.0, "interest_rate": 7.5, "loan_term_months": 60}
+    ],
+    "retirement_goal_method": "Safe Withdrawal Rate",
+    "post_retirement_expenses": 92000.0,
+    "average_post_retirement_income": 0.0,
+    "withdrawal_rate": 0.035,
+    "adjust_for_inflation": true
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "title": "Side-hustle landlord",
+  "summary": "33, single, Tampa. A day job, a duplex, weekend gig work and a crypto sleeve, plus a move to Lisbon in a few years.",
+  "profile": {
+    "age": 33,
+    "state": "Florida",
+    "city": "Tampa",
+    "country": "United States",
+    "married": false,
+    "dependents": 0,
+    "simulate_years": 25,
+    "num_simulations": 25,
+    "inflation": 0.03,
+    "income": [
+      {"income_type": "salary/hourly", "name": "Logistics Analyst Salary", "amount": 78000, "frequency": "annual",
+       "overtime_eligible": false, "has_growth": true, "growth_type": "percentage", "growth_percentage": 3.0},
+      {"income_type": "rental", "name": "Duplex", "number_of_units": 2, "rent_per_unit": 1550.0,
+       "rental_state": "Florida", "non_tax_costs_percentage": 12.0, "has_mortgage": true,
+       "mortgage_monthly_payment": 1700.0, "mortgage_interest_rate": 4.25, "mortgage_remaining_years": 26,
+       "occupancy_rate": 94.0, "property_management_fee": 0.0, "has_growth": false},
+      {"income_type": "gig_work", "name": "Weekend Food Delivery", "gigs_per_month": 24,
+       "average_take_home_per_gig": 22.0, "gig_expenses_percentage": 25.0, "gig_work_hours_per_month": 30,
+       "has_growth": false}
+    ],
+    "budget_items": [
+      {"type": "rent", "name": "rent", "value": 1450, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "utilities", "name": "utilities", "value": 190, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "groceries", "name": "groceries", "value": 450, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "dining_out", "name": "dining_out", "value": 260, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "gas", "name": "gas", "value": 180, "frequency": "monthly", "changes_if_not_working": false},
+      {"type": "healthcare", "name": "healthcare", "value": 210, "frequency": "monthly", "changes_if_not_working": true, "value_if_not_working": 480},
+      {"type": "entertainment", "name": "entertainment", "value": 160, "frequency": "monthly", "changes_if_not_working": false}
+    ],
+    "expenditure_growth_beyond_inflation": 0.005,
+    "assets_and_debts": [
+      {"type": "Checking Account", "name": "Checking", "value": 7000.0},
+      {"type": "Savings Account", "name": "High-yield Savings", "value": 18000.0, "interest_rate": 4.2},
+      {"type": "Retirement Accounts", "name": "Roth IRA and 401(k)", "value": 64000.0},
+      {"type": "Cryptocurrency", "name": "Crypto Wallet", "value": 9000.0},
+      {"type": "Credit Card Debt", "name": "Credit Card", "value": 2400.0, "interest_rate": 22.0, "remaining_term": 1}
+    ],
+    "investment_index_funds": 60.0,
+    "investment_bonds": 0.0,
+    "investment_rental_real_estate": 10.0,
+    "investment_retirement_accounts": 20.0,
+    "investment_high_yield_savings": 0.0,
+    "investment_peer_to_peer_lending": 0.0,
+    "investment_individual_stocks": 5.0,
+    "investment_cryptocurrency": 5.0,
+    "investment_other": 0.0,
+    "real_estate_investment_type": "long term rentals",
+    "milestones": [
+      {"date": "2031-09-01", "buy_a_house": false, "change_location": true, "major_expense": false,
+       "change_income": false, "change_budget": false, "major_windfall": false, "family_change": false,
+       "country": "Portugal", "city": "Lisbon", "from_city": "Tampa", "moving_cost": 9000.0,
+       "expense_adjustment": "Manual adjustment", "manual_expense_adjustment": 0.85}
+    ],
+    "retirement_goal_method": "Safe Withdrawal Rate",
+    "post_retirement_expenses": 40000.0,
+    "average_post_retirement_income": 12000.0,
+    "withdrawal_rate": 0.04,
+    "adjust_for_inflation": true
+  }
+}

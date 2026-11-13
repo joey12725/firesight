@@ -1,16 +1,13 @@
-import streamlit as st
-import boto3
-from boto3.dynamodb.conditions import Key
 import datetime
 import json
-from datetime import date
-from st_repeating_field_group import generate_repeating_field_group
-from datetime import date
-from importlib.metadata import version
+
 import pandas as pd
+import streamlit as st
+from st_repeating_field_group import generate_repeating_field_group
 
+from storage import ROOT, load_user_profile, save_user_profile
 
-with open('statetaxes.json', 'r') as file:
+with open(ROOT / 'statetaxes.json', 'r') as file:
     state_taxes = json.load(file)['states']
 
 global income_keys 
@@ -133,7 +130,7 @@ income_keys = {
     },
     "estimated_ipo_date": {
         "type": "date",
-        "default": date.today().replace(year=date.today().year + 2),
+        "default": datetime.date.today().replace(year=datetime.date.today().year + 2),
         "only_show_if": {
             "kwargs": {"income_type": "income_type", "stock_options_type": "stock_options_type"},
             "func": lambda income_type, stock_options_type: income_type == "stock_options" and stock_options_type == "pre_ipo"
@@ -192,24 +189,6 @@ income_keys = {
         "only_show_if": {
             "kwargs": {"income_type": "income_type", "match_eligible": "401k_match_eligible"},
             "func": lambda income_type, match_eligible: income_type in ["salary/hourly", "bonus"] and match_eligible
-        }
-    },
-    "overtime_eligible" : {
-        "type": "checkbox",
-        "default": False,
-        "label": "Eligible for Overtime",
-        "only_show_if": {
-            "kwargs": {"income_type": "income_type"},
-            "func": lambda income_type: income_type == "salary/hourly"
-        },
-    },
-    "overtime_rate": {
-        "type": float,
-        "default": 1.5,
-        "label": "Overtime Rate",
-        "only_show_if": {
-            "kwargs": {"income_type": "income_type", "overtime_eligible": "overtime_eligible"},
-            "func": lambda income_type, overtime_eligible: income_type == "salary/hourly" and overtime_eligible
         }
     },
     "monthly_overtime_hours": {
@@ -431,7 +410,7 @@ income_keys = {
 
 # Load cost-of-living data
 
-cost_of_living_data = pd.read_csv("cost-of-living.csv")
+cost_of_living_data = pd.read_csv(ROOT / "cost-of-living.csv")
 def deduplicate(ls):
     return list(dict.fromkeys(ls))
 
@@ -501,14 +480,6 @@ milestone_keys = {
     "house_price": {
         "type": float,
         "default": 300000.0,
-        "only_show_if": {
-            "kwargs": {"buy_a_house": "buy_a_house"},
-            "func": lambda buy_a_house: buy_a_house
-        }
-    },
-    "down_payment": {
-        "type": float,
-        "default": 60000.0,
         "only_show_if": {
             "kwargs": {"buy_a_house": "buy_a_house"},
             "func": lambda buy_a_house: buy_a_house
@@ -697,15 +668,6 @@ milestone_keys = {
 global states 
 states = ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming", "Washington D.C.", "Puerto Rico", "None"]
 
-try:
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
-    table = dynamodb.Table('firesight-users')
-except:
-    AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
-    AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-2', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-    table = dynamodb.Table('firesight-users')
-
 # Set page configuration
 st.set_page_config(page_title="FIRESight - Edit Profile", page_icon="👨")
 
@@ -723,30 +685,8 @@ def tooltip(text, type="caption"):
         elif type == "title":
             st.title(f"🛈 {text}")
 
-# Database functions
-def fetch_user_profile(user_id):
-    response = table.get_item(Key={'userid': user_id})
-    return response.get('Item', {}).get('profile', None)
-
-def update_user_profile(user_id, profile):
-    table.update_item(
-        Key={'userid': user_id},
-        UpdateExpression='SET profile = :val1',
-        ExpressionAttributeValues={':val1': profile}
-    )
-
-def load_user_profile(user_id):
-    profile_json = fetch_user_profile(user_id)
-    if profile_json:
-        return json.loads(profile_json)
-    return None
-
-def save_user_profile(user_id, user_data):
-    profile_json = json.dumps(user_data, indent=4)
-    update_user_profile(user_id, profile_json)
-
 # Load cost of living data
-cost_of_living = pd.read_csv('cost-of-living.csv')
+cost_of_living = pd.read_csv(ROOT / 'cost-of-living.csv')
 
 
 def personal_info_and_simulation_settings_page(user_data):
@@ -763,7 +703,7 @@ def personal_info_and_simulation_settings_page(user_data):
 
     tooltip("Please note: If you have a partner, use either average or combined numbers as makes sense (combined income, average age).")
 
-    dependents = st.number_input("How many kids or adult dependent do you have?", min_value=0)
+    dependents = st.number_input("How many kids or adult dependent do you have?", min_value=0, value=int(user_data.get('dependents', 0)))
     user_data['dependents'] = dependents
 
     user_data["city"] = st.selectbox("City", options=cities, index=cities.index(user_data.get('city', "Austin")))
@@ -780,7 +720,7 @@ def personal_info_and_simulation_settings_page(user_data):
     if user_data['simulate_years'] < 12:
         st.warning(f"Unless you are confident you are less than {user_data['simulate_years']} years from your FIRE number, it is recommended to simulate a larger number of years to ensure you have a good buffer.")
     if user_data['num_simulations'] < 10:
-        st.warning(f"The more simulations you run, the more accurate your results will be. It is recommended to run at least 10 simulations.")
+        st.warning("The more simulations you run, the more accurate your results will be. It is recommended to run at least 10 simulations.")
 
 def income_page(user_data):
     st.header("Income Information")
@@ -788,7 +728,7 @@ def income_page(user_data):
     tooltip("This should be your gross annual income, combined if you are married, from all sources")
     
     # Assume we have access to income_keys
-    user_data['income'] = generate_repeating_field_group(income_keys, "income_source")
+    user_data['income'] = generate_repeating_field_group(income_keys, "income_source", user_data.get('income', []))
 
 def budget_page(user_data):
     st.header("Budget")
@@ -800,8 +740,8 @@ def budget_page(user_data):
     budget_item_keys = {
         "type": {"type": "choice", "default": "rent", "choices": ["rent", "mortgage", "utilities", "groceries", "dining_out", "gas", "healthcare", "clothing", "public_transport", "entertainment", "gym", "other"]},
         "name": {"type": str, "default": "", "only_show_if": {"kwargs": {"type": "type"}, "func": lambda type: type == "other"}},
-        "value": {"type": int, "default": 2000, "only_show_if": {"kwargs": {"type": "type"}, "func": lambda type: type != "mortgage"}},
-        "frequency": {"type": "choice", "default": "monthly", "choices": ["weekly", "monthly", "annual"], "only_show_if": {"kwargs": {"type": "type"}, "func": lambda type: type != "mortgage"}},
+        "value": {"type": int, "default": 2000},
+        "frequency": {"type": "choice", "default": "monthly", "choices": ["weekly", "monthly", "annual"]},
         "changes_if_not_working": {"type": "checkbox", "default": False},
         #if would_be_different_if_not_working is true, then ask for what it would be different if not working
         "value_if_not_working": {
@@ -950,9 +890,9 @@ def milestones_page(user_data, milestone_keys=milestone_keys):
 
     budget_fields = {}
     for item in user_data.get('budget_items', []):
-        budget_fields[f"budget_{item['name'].lower().replace(' ', '_') if "name" in item.keys() else item["type"]}_{item['frequency']}"] = {
+        budget_fields[f"budget_{item['name'].lower().replace(' ', '_') if item.get('name') else item['type']}_{item.get('frequency', 'monthly')}"] = {
             "type": float,
-            "default": item['value'],
+            "default": item.get('value', 0.0),
             "only_show_if": {
                 "kwargs": {"change_budget": "change_budget"},
                 "func": lambda change_budget: change_budget
@@ -983,9 +923,12 @@ def milestones_page(user_data, milestone_keys=milestone_keys):
 def retirement_page(user_data):
     st.header("Retirement Planning")
     
+    goal_methods = ["Safe Withdrawal Rate", "Simulate Additional Years with Reduced Income"]
+    saved_method = user_data.get('retirement_goal_method', goal_methods[0])
     retirement_goal_method = st.selectbox(
         "Retirement Goal Method",
-        options=["Safe Withdrawal Rate", "Simulate Additional Years with Reduced Income"]
+        options=goal_methods,
+        index=goal_methods.index(saved_method) if saved_method in goal_methods else 0
     )
     
     if retirement_goal_method == "Safe Withdrawal Rate":
@@ -1048,8 +991,9 @@ def main():
     st.title("FIRESight - Your Path to Financial Independence")
 
     # Check if user is logged in
-    if 'user_id' not in st.session_state:
+    if not st.session_state.get('user_id'):
         st.error("Please log in to access your profile.")
+        st.page_link("pages/Create Account and Log in.py", label="Log in or try a demo profile", icon="🔐")
         st.stop()
 
     user_id = st.session_state['user_id']
