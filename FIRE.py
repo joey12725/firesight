@@ -1,18 +1,21 @@
-import pandas as pd
-import numpy as np
-import datetime
-from datetime import timedelta
-import random
-import requests
-import math
-import json
-import threading
-import concurrent.futures
-import sys
-import streamlit as st
-import warnings
+"""FIRESight simulation engine.
 
-warnings.filterwarnings('ignore')
+A month-by-month Monte Carlo model of one household's finances: income
+sources, budget, debts, investments, life milestones and taxes, stepped until
+the household hits its financial-independence target (or the horizon ends).
+The Streamlit pages in ``pages/`` are thin UIs over this module.
+"""
+import datetime
+import json
+import logging
+import random
+from datetime import timedelta
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # Helper function to ensure all dates are datetime.date
 def ensure_date(date):
@@ -29,13 +32,24 @@ def ensure_date(date):
 
 
 # ---- DATA LOADING ----
-with open('statetaxes.json', 'r') as file:
+DATA_DIR = Path(__file__).resolve().parent
+
+with open(DATA_DIR / 'statetaxes.json', 'r') as file:
     state_taxes = json.load(file)['states']
 
-col_data = pd.read_csv('cost-of-living.csv')
+col_data = pd.read_csv(DATA_DIR / 'cost-of-living.csv')
 
-stocks_data = pd.read_csv('stocks.csv')       # Must have a 'Return' column of monthly returns
-real_estate_data = pd.read_csv('realestate.csv')  # Also with a 'Return' column or similar
+stocks_data = pd.read_csv(DATA_DIR / 'stocks.csv')            # monthly total-market returns, 'Return' column
+real_estate_data = pd.read_csv(DATA_DIR / 'realestate.csv')   # monthly home-price returns, 'Return' column
+
+# Asset classes that are modeled as part of the invested portfolio
+INVESTMENT_TYPES = ['Index Funds', 'Bonds', 'Rental Real Estate', 'Retirement Accounts',
+                    'High Yield Savings', 'Peer-to-Peer Lending', 'Individual Stocks',
+                    'Cryptocurrency', 'Other']
+CASH_ACCOUNT_TYPES = ['Checking Account', 'Savings Account']
+PORTFOLIO_ACCOUNT_TYPES = ['Retirement Accounts', 'Brokerage Account', 'Investment Account',
+                           'Certificate of Deposit', 'Index Funds', 'Bonds', 'High Yield Savings',
+                           'Peer-to-Peer Lending', 'Individual Stocks', 'Cryptocurrency']
 
 
 def get_state_tax_data(state_name):
@@ -80,7 +94,7 @@ class ReturnGenerator:
         Generates the entire monthly return sequence for the asset.
         For large n_months, we repeatedly pick blocks or use states as needed.
         """
-        if self.asset_name == 'Index Funds':
+        if self.asset_name in ('Index Funds', 'Retirement Accounts'):
             self.returns = self.block_bootstrap(stocks_data['Return'].values, self.n_months)
 
         elif self.asset_name == 'Rental Real Estate':
@@ -462,7 +476,8 @@ class IncomeSource:
 
         self.last_update = None
         self.current_value = 0
-        self.random_state = np.random.RandomState()
+        # derived from the global NumPy RNG so seeded runs are reproducible
+        self.random_state = np.random.RandomState(np.random.randint(0, 2**31 - 1))
 
         if self.income_type == 'salary/hourly':
             self.amount = data.get('amount', 50000)
@@ -833,7 +848,9 @@ class InvestmentVehicle:
 # ----------------- MAIN User CLASS -----------------
 class User:
     def __init__(self, user_data):
-        self.time_series = pd.DataFrame()
+        self._rows = []
+        self._time_series_cache = None
+        self.monthly_hook = None
         self.time = datetime.datetime.now().date()
         self.month = 0
         self.retirement_age = None
@@ -846,8 +863,6 @@ class User:
         self.leases = []
         self.yearly_income = 0
         self.yearly_taxes = 0
-        self.func = None
-        self.kwargs = {}
         self.yearly_expenses = 0
         self.social_security_age = 67
         self.load_user_data(user_data)
@@ -871,25 +886,23 @@ class User:
         self.budget_items = [BudgetItem(b) for b in data.get('budget_items', [])]
         self.expenditure_growth_beyond_inflation = data.get('expenditure_growth_beyond_inflation', 0.03)
 
-        # Assets & Debts
-        self.assets_and_debts = [AssetOrDebt(a) for a in data.get('assets_and_debts', [])]
-
-        # cash + investment
-        self.cash = sum(a.value for a in self.assets_and_debts if a.type in ['Checking Account', 'Savings Account'])
-        self.investment_balance = sum(a.value for a in self.assets_and_debts
-                                      if a.type in ['Retirement Accounts', 'Brokerage Account','Investment Account',
-                                                    'Certificate of Deposit'])
+        # Assets & Debts. Cash accounts seed the cash balance and investment
+        # accounts seed the portfolio; everything else (debts, property, other
+        # assets) is tracked on its own. Each balance is counted exactly once.
+        all_assets_and_debts = [AssetOrDebt(a) for a in data.get('assets_and_debts', [])]
+        self.cash = sum(a.value for a in all_assets_and_debts if a.type in CASH_ACCOUNT_TYPES)
+        self.investment_balance = sum(a.value for a in all_assets_and_debts if a.type in PORTFOLIO_ACCOUNT_TYPES)
+        self.assets_and_debts = [a for a in all_assets_and_debts
+                                 if a.type not in CASH_ACCOUNT_TYPES + PORTFOLIO_ACCOUNT_TYPES]
 
         # Read investment allocations
         self.investment_allocations = {}
         total_allocation = 0
-        for key in ['Index Funds', 'Bonds', 'Rental Real Estate', 'Retirement Accounts', 
-                    'High Yield Savings','Peer-to-Peer Lending', 'Individual Stocks', 
-                    'Cryptocurrency', 'Other']:
-            allocation = data.get(f'investment_{key.lower().replace(" ", "_")}', 0)
+        for key in INVESTMENT_TYPES:
+            allocation = data.get(f'investment_{key.lower().replace(" ", "_").replace("-", "_")}', 0)
             self.investment_allocations[key] = allocation
             total_allocation += allocation
-        if total_allocation != 100:
+        if abs(total_allocation - 100) > 0.5:
             raise ValueError("Investment allocations must sum to 100%")
 
         # Real estate investment type
@@ -938,20 +951,18 @@ class User:
 
         self.location = {'city': '', 'country': self.state}
         self.home = None
-        self.func = data.get('func', None)
-        if self.func:
-            self.func+= self.get_execution_line()
 
-    def get_execution_line(self):
-        if self.func and (not hasattr(self, 'func') or not callable(self.func)):
-            pass
-        if self.func and (not hasattr(self, 'kwargs') or not isinstance(self.kwargs, dict)):
-            pass
-        if self.func:
-            func_name = self.func.__name__ if hasattr(self.func, '__name__') else "unknown_func"
-            kwargs_str = ", ".join(f"{k}={repr(v)}" for k, v in self.kwargs.items())
-            return f"\n{func_name}(self, {kwargs_str})"
-        return ""
+    @property
+    def time_series(self):
+        """Monthly history of the run as a DataFrame (built lazily from recorded rows)."""
+        if self._time_series_cache is None or len(self._time_series_cache) != len(self._rows):
+            self._time_series_cache = pd.DataFrame(self._rows)
+        return self._time_series_cache
+
+    @time_series.setter
+    def time_series(self, df):
+        self._rows = df.to_dict('records') if df is not None else []
+        self._time_series_cache = None
 
     def calculate_monthly_income(self):
         # include social security if age >= self.social_security_age and not retired
@@ -998,20 +1009,15 @@ class User:
         if self.custom_tax_brackets:
             return 0
         if self.state_tax_data and self.state_tax_data['income_tax'] != 'none':
+            # statetaxes.json lists each bracket by its lower threshold
+            brackets = sorted(self.state_tax_data['income_tax'], key=lambda b: b['bracket'])
             tax = 0
-            taxable_income = income
-            prev_limit = 0
-            for bracket in self.state_tax_data['income_tax']:
-                limit = bracket['bracket']
-                rate = bracket['rate'] / 100
-                bracket_size = limit - prev_limit
-                if taxable_income > bracket_size:
-                    tax += bracket_size * rate
-                    taxable_income -= bracket_size
-                    prev_limit = limit
-                else:
-                    tax += taxable_income * rate
+            for i, bracket in enumerate(brackets):
+                lower = bracket['bracket']
+                upper = brackets[i + 1]['bracket'] if i + 1 < len(brackets) else float('inf')
+                if income <= lower:
                     break
+                tax += (min(income, upper) - lower) * bracket['rate'] / 100
             return tax
         return 0
 
@@ -1211,7 +1217,8 @@ class User:
             return
         for v in self.investment_vehicles:
             bal= self.vehicle_balances[v.name]
-            if bal<=0: continue
+            if bal<=0:
+                continue
             proportion= bal/ total
             sell = proportion*amount
             if sell> bal:
@@ -1303,7 +1310,7 @@ class User:
             row[f'lease_{l.item_name}_{idx}_payment'] = l.monthly_payment
             row[f'lease_{l.item_name}_{idx}_asset_value'] = l.asset_value if l.consider_in_net_worth else 0
 
-        self.time_series = pd.concat([self.time_series, pd.DataFrame([row])], ignore_index=True)
+        self._rows.append(row)
 
     def check_retirement(self):
         if self.retirement_goal_method=='Safe Withdrawal Rate':
@@ -1344,8 +1351,8 @@ class User:
 
     def clone_user_for_reduced_income_sim(self, future_years):
         import copy
-        sim_clone = User({})
-        sim_clone.time_series = pd.DataFrame()
+        sim_clone = User({'investment_other': 100, 'married': self.married, 'state': self.state})
+        sim_clone._rows = []
         sim_clone.time= self.time
         sim_clone.month= 0
         sim_clone.age= self.age
@@ -1378,14 +1385,16 @@ class User:
 
         # remove certain incomes
         sim_clone.income_sources= []
+        # remove_income_sources is keyed by income name (True = drop it) or,
+        # in older profiles, by income type ('remove' / 'zero')
+        removals = getattr(self, 'remove_income_sources', {}) or {}
         for i_src in self.income_sources:
             ic= copy.deepcopy(i_src)
-            if ic.income_type in getattr(self, 'remove_income_sources', {}):
-                action= self.remove_income_sources[ic.income_type]
-                if action=='remove':
-                    continue
-                elif action=='zero':
-                    ic.amount= 0
+            action = removals.get(ic.name, removals.get(ic.income_type))
+            if action is True or action=='remove':
+                continue
+            elif action=='zero':
+                ic.amount= 0
             sim_clone.income_sources.append(ic)
 
         sim_clone.milestones = []
@@ -1455,11 +1464,12 @@ class User:
         if self.month%12==0:
             self.pay_annual_taxes()
 
-        try:
-            if self.func:
-                exec(self.func)
-        except Exception as e:
-            st.warning(f"Error with AI defined functions. Continuing without utilizing the function.")
+        # Optional extension point: a callable run once per simulated month.
+        if self.monthly_hook is not None:
+            try:
+                self.monthly_hook(self)
+            except Exception:
+                logger.exception("monthly_hook failed; continuing without it")
 
     def run_simulation(self):
         total_m = self.simulate_years*12
@@ -1467,9 +1477,17 @@ class User:
             self.step_month()
 
 
-def run_monte_carlo_simulation(user_data):
+def run_monte_carlo_simulation(user_data, seed=None):
+    """Run ``num_simulations`` independent paths for one profile.
+
+    Returns (average time series by month, mean retirement age, std of
+    retirement age, list of per-path time series). Pass ``seed`` for a
+    reproducible run.
+    """
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
     simulations = user_data.get('num_simulations', 100)
-    simulate_years = user_data.get('simulate_years', 30)
     results = []
     retirement_ages = []
 
